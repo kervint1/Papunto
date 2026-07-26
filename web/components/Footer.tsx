@@ -10,7 +10,7 @@ const SNS = [
 
 const LEGAL_LINKS = [
   { label: "Libro de reclamaciones", href: "/reclamaciones" },
-  { label: "Términos de uso", href: "#" },
+  { label: "Términos de uso", href: "/terminos" },
   { label: "Política de privacidad y datos personales", href: "/privacidad" },
   { label: "Política de cookies", href: "/cookies" },
   { label: "Consentimiento de uso de cookies", href: "/consentimiento-cookies" },
