@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
 
 const SNS = [
@@ -8,11 +9,11 @@ const SNS = [
 ];
 
 const LEGAL_LINKS = [
-  "Libro de reclamaciones",
-  "Términos de uso",
-  "Política de privacidad y datos personales",
-  "Política de cookies",
-  "Consentimiento de uso de cookies",
+  { label: "Libro de reclamaciones", href: "/reclamaciones" },
+  { label: "Términos de uso", href: "#" },
+  { label: "Política de privacidad y datos personales", href: "#" },
+  { label: "Política de cookies", href: "#" },
+  { label: "Consentimiento de uso de cookies", href: "#" },
 ];
 
 export function Footer() {
@@ -40,13 +41,14 @@ export function Footer() {
 
         {/* Legal links */}
         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
-          {LEGAL_LINKS.map((label) => (
-            <span
+          {LEGAL_LINKS.map(({ label, href }) => (
+            <Link
               key={label}
+              href={href}
               className="text-xs text-neutral-700 underline-offset-2 hover:underline"
             >
               {label}
-            </span>
+            </Link>
           ))}
         </div>
       </div>

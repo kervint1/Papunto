@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 import config
 from errors import ApiError
-from routers import auth, me, postback, postbacks, withdrawals
+from routers import auth, complaints, me, postback, postbacks, withdrawals
 
 # テーブル作成・変更はAlembicマイグレーションで行う（alembic upgrade head）
 app = FastAPI(title="Papunto API")
@@ -36,3 +36,4 @@ app.include_router(me.router)
 app.include_router(withdrawals.router)
 app.include_router(postbacks.router)
 app.include_router(postback.router)
+app.include_router(complaints.router)

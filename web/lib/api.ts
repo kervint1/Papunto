@@ -38,6 +38,29 @@ export interface Postback {
   created_at: string;
 }
 
+export interface ComplaintInput {
+  tipo: "reclamo" | "queja";
+  consumidor_nombre: string;
+  consumidor_domicilio: string;
+  consumidor_documento_tipo: "DNI" | "CE" | "Pasaporte";
+  consumidor_documento_numero: string;
+  consumidor_telefono?: string;
+  consumidor_email: string;
+  es_menor_edad: boolean;
+  apoderado_nombre?: string;
+  bien_tipo: "producto" | "servicio";
+  bien_descripcion: string;
+  monto_reclamado?: number;
+  detalle: string;
+  pedido: string;
+}
+
+export interface ComplaintCreated {
+  id: string;
+  number: number;
+  message: string;
+}
+
 async function apiFetch<T>(
   path: string,
   token: string,
@@ -83,6 +106,24 @@ export function getPostbacks(
   token: string
 ): Promise<{ postbacks: Postback[] }> {
   return apiFetch<{ postbacks: Postback[] }>("/api/v1/postbacks", token);
+}
+
+// Libro de Reclamaciones: acceso público, no requiere token
+export async function createComplaint(
+  body: ComplaintInput
+): Promise<ComplaintCreated> {
+  const res = await fetch(`${API_URL}/api/v1/complaints`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const responseBody = await res.json().catch(() => null);
+    throw new ApiError(
+      responseBody?.error ?? { code: "UNKNOWN", message: "Error de conexión" }
+    );
+  }
+  return res.json();
 }
 
 export async function createWithdrawal(
