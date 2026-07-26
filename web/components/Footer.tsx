@@ -35,7 +35,7 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="mt-6 text-sm text-neutral-800">
-          Rewardo © 2026. Todos los derechos reservados.
+          Papunto © 2026. Todos los derechos reservados.
         </p>
 
         {/* Legal links */}

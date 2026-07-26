@@ -5,7 +5,7 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Rewardo",
+  title: "Papunto",
   description: "Completa tareas y recibe dinero al instante en tu Yape",
 };
 

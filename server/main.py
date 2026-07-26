@@ -7,7 +7,7 @@ from errors import ApiError
 from routers import auth, me, postback, postbacks, withdrawals
 
 # テーブル作成・変更はAlembicマイグレーションで行う（alembic upgrade head）
-app = FastAPI(title="Rewardo API")
+app = FastAPI(title="Papunto API")
 
 app.add_middleware(
     CORSMiddleware,

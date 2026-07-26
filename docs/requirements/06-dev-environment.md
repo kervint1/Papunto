@@ -18,7 +18,7 @@
 全体構成は [FarmMatch](https://github.com/kervint1/FarmMatch) を踏襲する（FarmMatchのfrontend/backendに相当するものを web/ + server/ と命名。serverはrouters/models/schemas/servicesの分け方）。
 
 ```
-cashYape/
+papunto/
 ├── docker-compose.yml
 ├── .env                  # compose が読む環境変数（gitignore対象）
 ├── .env.example          # 必要な変数の一覧（コミットする）
@@ -72,7 +72,7 @@ services:
       - ./server:/app
     env_file: .env               # SECRET_KEY / GOOGLE_CLIENT_ID などを渡す
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/rewardo
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/papunto
       POINTS_PER_SOL: "100"
       MIN_WITHDRAWAL_POINTS: "500"
       ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
@@ -87,7 +87,7 @@ services:
       - "5432:5432"              # DBクライアント(TablePlus等)からも繋げる
     environment:
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: rewardo
+      POSTGRES_DB: papunto
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -176,7 +176,7 @@ docker compose exec server alembic upgrade head
 | DBを初期化からやり直す | `docker compose down -v`（ボリュームごと削除） |
 | npmパッケージ追加 | `docker compose exec web npm install <pkg>` → 次回のために `docker compose build web` |
 | pipパッケージ追加 | `requirements.txt` に追記 → `docker compose build server` → 再起動 |
-| 開発DBをGUIで見る | TablePlus等で `localhost:5432 / postgres / postgres / rewardo` に接続 |
+| 開発DBをGUIで見る | TablePlus等で `localhost:5432 / postgres / postgres / papunto` に接続 |
 
 ソースコードの変更はバインドマウント経由で即座に反映される。**再ビルドが必要なのは依存関係が変わったときだけ。**
 
