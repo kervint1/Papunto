@@ -29,6 +29,7 @@ services:
       POINTS_PER_SOL: "100"
       MIN_WITHDRAWAL_POINTS: "500"
       ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
+      FRONTEND_ORIGIN: http://localhost:3001   # webの公開ポートに合わせる（CORS許可）
     depends_on:
       db:
         condition: service_healthy
