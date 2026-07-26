@@ -133,9 +133,12 @@ export default function ReclamacionesPage() {
           <strong>15 días hábiles, improrrogables</strong>.
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-6">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-6 flex flex-col gap-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8"
+        >
           {/* Tipo */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <div>
             <Label>Tipo de solicitud</Label>
             <div className="mt-3 flex gap-3">
               {(["reclamo", "queja"] as const).map((tipo) => (
@@ -161,7 +164,7 @@ export default function ReclamacionesPage() {
           </div>
 
           {/* Datos del consumidor */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <div className="border-t border-neutral-100 pt-6">
             <h3>Datos del consumidor reclamante</h3>
             <div className="mt-4 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
@@ -254,7 +257,7 @@ export default function ReclamacionesPage() {
           </div>
 
           {/* Datos del bien contratado */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <div className="border-t border-neutral-100 pt-6">
             <h3>Datos del bien contratado</h3>
             <div className="mt-4 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
@@ -295,7 +298,7 @@ export default function ReclamacionesPage() {
           </div>
 
           {/* Detalle y pedido */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <div className="border-t border-neutral-100 pt-6">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="detalle">Detalle de la reclamación</Label>
@@ -319,15 +322,17 @@ export default function ReclamacionesPage() {
             </div>
           </div>
 
-          <label className="flex items-start gap-2 text-sm text-neutral-700">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={form.declaracion}
-              onChange={(e) => update("declaracion", e.target.checked)}
-            />
-            Declaro que la información consignada en este formulario es verdadera.
-          </label>
+          <div className="border-t border-neutral-100 pt-6">
+            <label className="flex items-start gap-2 text-sm text-neutral-700">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={form.declaracion}
+                onChange={(e) => update("declaracion", e.target.checked)}
+              />
+              Declaro que la información consignada en este formulario es verdadera.
+            </label>
+          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
