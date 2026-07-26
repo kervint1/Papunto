@@ -78,7 +78,7 @@ export default function PrivacidadPage() {
 
           {/* Titular */}
           <Section title="Titular y Responsable del tratamiento de los Datos">
-            <p>Papunto</p>
+            <p>Papunto — 1 Gosho, Ichihara-shi, Chiba, Japón</p>
             <p>Correo electrónico de contacto del Titular: kervint1@gmail.com</p>
           </Section>
 
