@@ -1,26 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Check, Smartphone } from "lucide-react";
 
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMe } from "@/hooks/useMe";
-import { ApiError, createWithdrawal } from "@/lib/api";
-import { getDestination } from "@/lib/exchangeDestinations";
+import {
+  ApiError,
+  createTopUp,
+  detectOperator,
+  type OperatorDetectResult,
+} from "@/lib/api";
 
-export default function ExchangeDestinationPage() {
-  const { destination: destinationId } = useParams<{ destination: string }>();
-  const destination = getDestination(destinationId);
+export default function RecargaCelularPage() {
   const router = useRouter();
   const { me, token, refresh } = useMe();
 
   const [phone, setPhone] = useState("");
+  const [operator, setOperator] = useState<OperatorDetectResult | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
+
   const [pointsInput, setPointsInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -33,41 +38,56 @@ export default function ExchangeDestinationPage() {
   const phoneValid = /^\d{9}$/.test(phone);
   const canWithdraw = points >= minPoints;
   const canSubmit =
-    !!token && !submitting && canWithdraw && phoneValid && inputPoints > 0;
+    !!token &&
+    !submitting &&
+    canWithdraw &&
+    phoneValid &&
+    operator !== null &&
+    inputPoints > 0;
+
+  // 電話番号が9桁になったら少し待ってから自動でキャリアを判定する
+  useEffect(() => {
+    setOperator(null);
+    setDetectError(null);
+    if (!phoneValid || !token) return;
+
+    const timeout = setTimeout(async () => {
+      setDetecting(true);
+      try {
+        const result = await detectOperator(token, phone);
+        setOperator(result);
+      } catch (err) {
+        setDetectError(
+          err instanceof ApiError ? err.message : "No se pudo identificar el operador"
+        );
+      } finally {
+        setDetecting(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, phoneValid, token]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) return;
+    if (!token || !operator) return;
     setError(null);
     setSubmitting(true);
     try {
-      await createWithdrawal(token, phone, inputPoints);
+      await createTopUp(token, phone, operator.operator_id, inputPoints);
       await refresh();
       router.push("/wallet");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error inesperado");
+      if (err instanceof ApiError && err.code === "OPERATOR_MISMATCH") {
+        // 番号のキャリアが変わっていた場合: 再検出させて確認を促す
+        setOperator(null);
+        setError("El operador cambió, verifica el número nuevamente.");
+      } else {
+        setError(err instanceof ApiError ? err.message : "Error inesperado");
+      }
       setSubmitting(false);
     }
-  }
-
-  if (!destination || !destination.available) {
-    return (
-      <div className="min-h-screen w-full bg-neutral-50">
-        <Header points={points} />
-        <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-          <Link
-            href="/exchange"
-            className="flex items-center gap-2 text-sm text-neutral-500 transition-colors hover:text-neutral-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Volver
-          </Link>
-          <p className="mt-6 text-neutral-500">
-            Este destino no está disponible todavía.
-          </p>
-        </main>
-      </div>
-    );
   }
 
   return (
@@ -85,21 +105,11 @@ export default function ExchangeDestinationPage() {
 
         <div className="mt-4 flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-yellow-100 p-2">
-            {typeof destination.icon === "string" ? (
-              <Image
-                src={destination.icon}
-                alt={destination.name}
-                width={56}
-                height={56}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <destination.icon className="h-8 w-8 text-neutral-700" />
-            )}
+            <Smartphone className="h-8 w-8 text-neutral-700" />
           </div>
           <div>
-            <h1>Canjear a {destination.name}</h1>
-            <p className="text-sm text-neutral-500">{destination.desc}</p>
+            <h1>Recarga celular</h1>
+            <p className="text-sm text-neutral-500">Claro, Movistar, Entel o Bitel</p>
           </div>
         </div>
 
@@ -118,20 +128,17 @@ export default function ExchangeDestinationPage() {
             </p>
           </div>
           <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-            <p className="flex items-center gap-1 text-xs text-neutral-500">
-              <Clock className="h-3.5 w-3.5" />
-              Tiempo de procesamiento
-            </p>
-            <p className="mt-1 text-neutral-900">{destination.processingTime}</p>
+            <p className="text-xs text-neutral-500">Tiempo de procesamiento</p>
+            <p className="mt-1 text-neutral-900">Instantáneo</p>
           </div>
         </div>
 
         {/* Form */}
         <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h3>Datos del canje</h3>
+          <h3>Datos de la recarga</h3>
           <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="phone">Número de Yape (9 dígitos)</Label>
+              <Label htmlFor="phone">Número de celular (9 dígitos)</Label>
               <Input
                 id="phone"
                 inputMode="numeric"
@@ -145,6 +152,18 @@ export default function ExchangeDestinationPage() {
                   Ingresa un número de 9 dígitos.
                 </p>
               )}
+              {detecting && (
+                <p className="text-xs text-neutral-500">Identificando operador...</p>
+              )}
+              {operator && (
+                <p className="flex items-center gap-1 text-xs text-green-700">
+                  <Check className="h-3.5 w-3.5" />
+                  Operador detectado: <strong>{operator.operator_name}</strong>
+                </p>
+              )}
+              {detectError && (
+                <p className="text-xs text-destructive">{detectError}</p>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -154,6 +173,7 @@ export default function ExchangeDestinationPage() {
               <Input
                 id="points"
                 inputMode="numeric"
+                disabled={!operator}
                 placeholder={minPoints.toLocaleString("es-PE")}
                 value={pointsInput}
                 onChange={(e) =>
@@ -166,7 +186,7 @@ export default function ExchangeDestinationPage() {
                   <span className="font-medium">
                     S/ {solesPreview.toFixed(2)}
                   </span>{" "}
-                  en tu Yape
+                  de recarga
                 </p>
               )}
             </div>
@@ -178,7 +198,7 @@ export default function ExchangeDestinationPage() {
               disabled={!canSubmit}
               className="h-12 w-full bg-yellow-400 text-neutral-900 hover:bg-yellow-300 disabled:bg-neutral-200 disabled:text-neutral-400"
             >
-              {submitting ? "Enviando..." : "Solicitar canje"}
+              {submitting ? "Enviando..." : "Solicitar recarga"}
             </Button>
             {!canWithdraw && (
               <p className="text-center text-xs text-neutral-500">

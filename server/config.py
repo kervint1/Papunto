@@ -20,3 +20,14 @@ POINTS_PER_SOL = int(os.getenv("POINTS_PER_SOL", "100"))          # 100 pts = S/
 MIN_WITHDRAWAL_POINTS = int(os.getenv("MIN_WITHDRAWAL_POINTS", "500"))  # = S/ 5
 
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+
+# Reloadly: ポイント→携帯キャリア（Claro/Movistar/Entel/Bitel）チャージ交換
+RELOADLY_CLIENT_ID = os.getenv("RELOADLY_CLIENT_ID", "")
+RELOADLY_CLIENT_SECRET = os.getenv("RELOADLY_CLIENT_SECRET", "")
+RELOADLY_SANDBOX = os.getenv("RELOADLY_SANDBOX", "true").lower() in ("1", "true", "yes")
+
+RELOADLY_AUTH_URL = "https://auth.reloadly.com/oauth/token"
+RELOADLY_API_BASE = (
+    "https://topups-sandbox.reloadly.com" if RELOADLY_SANDBOX
+    else "https://topups.reloadly.com"
+)

@@ -32,13 +32,17 @@ export default function ExchangePage() {
                 }`}
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-yellow-100 p-1.5">
-                  <Image
-                    src={d.icon}
-                    alt={d.name}
-                    width={48}
-                    height={48}
-                    className="h-full w-full object-contain"
-                  />
+                  {typeof d.icon === "string" ? (
+                    <Image
+                      src={d.icon}
+                      alt={d.name}
+                      width={48}
+                      height={48}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <d.icon className="h-7 w-7 text-neutral-700" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-neutral-900">{d.name}</div>

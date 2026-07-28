@@ -61,6 +61,22 @@ export interface ComplaintCreated {
   message: string;
 }
 
+export interface TopUp {
+  id: string;
+  phone_number: string;
+  operator_id: number;
+  operator_name: string;
+  points: number;
+  amount_soles: number;
+  status: "processing" | "completed" | "failed";
+  created_at: string;
+}
+
+export interface OperatorDetectResult {
+  operator_id: number;
+  operator_name: string;
+}
+
 async function apiFetch<T>(
   path: string,
   token: string,
@@ -86,6 +102,10 @@ async function apiFetch<T>(
 // ソル額はDecimal由来の文字列（"10.00"）で届くため数値に正規化する（ポイントは整数のまま）
 function normalizeWithdrawal(w: Withdrawal): Withdrawal {
   return { ...w, amount_soles: Number(w.amount_soles) };
+}
+
+function normalizeTopUp(t: TopUp): TopUp {
+  return { ...t, amount_soles: Number(t.amount_soles) };
 }
 
 export function getMe(token: string): Promise<Me> {
@@ -136,4 +156,32 @@ export async function createWithdrawal(
     body: JSON.stringify({ yape_phone: yapePhone, points }),
   });
   return normalizeWithdrawal(w);
+}
+
+export function detectOperator(
+  token: string,
+  phoneNumber: string
+): Promise<OperatorDetectResult> {
+  return apiFetch<OperatorDetectResult>(
+    `/api/v1/topups/operator?phone_number=${encodeURIComponent(phoneNumber)}`,
+    token
+  );
+}
+
+export async function createTopUp(
+  token: string,
+  phoneNumber: string,
+  operatorId: number,
+  points: number
+): Promise<TopUp> {
+  const t = await apiFetch<TopUp>("/api/v1/topups", token, {
+    method: "POST",
+    body: JSON.stringify({ phone_number: phoneNumber, operator_id: operatorId, points }),
+  });
+  return normalizeTopUp(t);
+}
+
+export async function getTopUps(token: string): Promise<{ topups: TopUp[] }> {
+  const res = await apiFetch<{ topups: TopUp[] }>("/api/v1/topups", token);
+  return { topups: res.topups.map(normalizeTopUp) };
 }

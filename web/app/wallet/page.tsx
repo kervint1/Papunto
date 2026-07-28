@@ -11,8 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMe } from "@/hooks/useMe";
 import {
   getPostbacks,
+  getTopUps,
   getWithdrawals,
   type Postback,
+  type TopUp,
   type Withdrawal,
 } from "@/lib/api";
 
@@ -26,15 +28,27 @@ function StatusBadge({ status }: { status: Withdrawal["status"] }) {
   return <Badge className="bg-amber-100 text-amber-700">Pendiente</Badge>;
 }
 
+function TopUpStatusBadge({ status }: { status: TopUp["status"] }) {
+  if (status === "completed") {
+    return <Badge className="bg-green-100 text-green-700">Recargado</Badge>;
+  }
+  if (status === "failed") {
+    return <Badge className="bg-red-100 text-red-700">Fallido</Badge>;
+  }
+  return <Badge className="bg-amber-100 text-amber-700">Procesando</Badge>;
+}
+
 export default function WalletPage() {
   const { me, token } = useMe();
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [postbacks, setPostbacks] = useState<Postback[]>([]);
+  const [topups, setTopups] = useState<TopUp[]>([]);
 
   useEffect(() => {
     if (!token) return;
     getWithdrawals(token).then((r) => setWithdrawals(r.withdrawals)).catch(console.error);
     getPostbacks(token).then((r) => setPostbacks(r.postbacks)).catch(console.error);
+    getTopUps(token).then((r) => setTopups(r.topups)).catch(console.error);
   }, [token]);
 
   const points = me?.points ?? 0;
@@ -84,6 +98,7 @@ export default function WalletPage() {
               <TabsList>
                 <TabsTrigger value="earned">Ganados</TabsTrigger>
                 <TabsTrigger value="exchanged">Canjes</TabsTrigger>
+                <TabsTrigger value="topups">Recargas</TabsTrigger>
               </TabsList>
 
               <TabsContent value="earned">
@@ -135,6 +150,34 @@ export default function WalletPage() {
                         </div>
                       </div>
                       <StatusBadge status={w.status} />
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="topups">
+                <div className="mt-4 flex flex-col gap-3">
+                  {topups.length === 0 && (
+                    <p className="text-sm text-neutral-400">
+                      Aún no tienes recargas.
+                    </p>
+                  )}
+                  {topups.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+                    >
+                      <div>
+                        <div className="text-neutral-900">
+                          {t.points.toLocaleString("es-PE")} pts → S/{" "}
+                          {t.amount_soles.toFixed(2)} ({t.operator_name})
+                        </div>
+                        <div className="text-xs text-neutral-400">
+                          {new Date(t.created_at).toLocaleDateString("es-PE")} ·{" "}
+                          {t.phone_number}
+                        </div>
+                      </div>
+                      <TopUpStatusBadge status={t.status} />
                     </div>
                   ))}
                 </div>

@@ -28,7 +28,10 @@ heroku config:set -a papunto-api \
   GOOGLE_CLIENT_ID=<GoogleのクライアントID> \
   POINTS_PER_SOL=100 \
   MIN_WITHDRAWAL_POINTS=500 \
-  FRONTEND_ORIGIN=https://<vercelのドメイン>
+  FRONTEND_ORIGIN=https://<vercelのドメイン> \
+  RELOADLY_CLIENT_ID=<Reloadlyのクライアント ID> \
+  RELOADLY_CLIENT_SECRET=<Reloadlyのクライアントシークレット> \
+  RELOADLY_SANDBOX=false
 # MONLIX_POSTBACK_SECRET はMonlix契約後に設定
 
 # デプロイ（リポジトリルートから。server/ だけをpush）

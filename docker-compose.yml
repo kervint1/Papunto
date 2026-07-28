@@ -30,6 +30,7 @@ services:
       MIN_WITHDRAWAL_POINTS: "500"
       ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
       FRONTEND_ORIGIN: http://localhost:3001   # webの公開ポートに合わせる（CORS許可）
+      RELOADLY_SANDBOX: "true"
     depends_on:
       db:
         condition: service_healthy

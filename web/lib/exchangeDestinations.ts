@@ -1,8 +1,11 @@
+import type { LucideIcon } from "lucide-react";
+import { Smartphone } from "lucide-react";
+
 export type ExchangeDestination = {
   id: string;
   name: string;
   desc: string;
-  icon: string;
+  icon: string | LucideIcon; // 画像パス、または lucide-react のアイコンコンポーネント
   available: boolean;
   processingTime: string;
 };
@@ -15,6 +18,14 @@ export const DESTINATIONS: ExchangeDestination[] = [
     icon: "/icons/yape.png",
     available: true,
     processingTime: "1-2 días hábiles",
+  },
+  {
+    id: "recarga",
+    name: "Recarga celular",
+    desc: "Recarga de saldo Claro, Movistar, Entel o Bitel",
+    icon: Smartphone,
+    available: true,
+    processingTime: "Instantáneo",
   },
   {
     id: "paypal",
