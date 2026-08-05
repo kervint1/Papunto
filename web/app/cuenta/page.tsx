@@ -3,18 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import {
-  ArrowLeftRight,
-  BookOpen,
-  Check,
-  ChevronRight,
-  Cookie,
-  Copy,
-  FileText,
-  LogOut,
-  Shield,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowLeftRight, Check, Copy, LogOut } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
 import { Header } from "@/components/Header";
@@ -30,13 +19,6 @@ import {
   type TopUp,
   type Withdrawal,
 } from "@/lib/api";
-
-const LEGAL_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/terminos", label: "Términos de uso", icon: FileText },
-  { href: "/privacidad", label: "Política de privacidad", icon: Shield },
-  { href: "/cookies", label: "Política de cookies", icon: Cookie },
-  { href: "/reclamaciones", label: "Libro de reclamaciones", icon: BookOpen },
-];
 
 // ポイント明細の絞り込み。成果の3状態にそのまま対応する
 const FILTERS = [
@@ -114,6 +96,7 @@ export default function CuentaPage() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [topups, setTopups] = useState<TopUp[]>([]);
   const [filter, setFilter] = useState<FilterId>("all");
+  const [month, setMonth] = useState<string>("all"); // "all" または "YYYY-MM"
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -143,9 +126,18 @@ export default function CuentaPage() {
     [postbacks]
   );
 
+  // 履歴に存在する月だけをタブに出す（新しい順）
+  const months = useMemo(() => {
+    const keys = Array.from(new Set(postbacks.map((p) => p.created_at.slice(0, 7))));
+    return keys.sort().reverse();
+  }, [postbacks]);
+
   const filteredPostbacks = useMemo(
-    () => (filter === "all" ? postbacks : postbacks.filter((p) => p.status === filter)),
-    [postbacks, filter]
+    () =>
+      postbacks
+        .filter((p) => filter === "all" || p.status === filter)
+        .filter((p) => month === "all" || p.created_at.slice(0, 7) === month),
+    [postbacks, filter, month]
   );
 
   const memberNumber = me ? String(me.id).padStart(8, "0") : "";
@@ -248,6 +240,32 @@ export default function CuentaPage() {
                 ))}
               </div>
 
+              {/* 月別タブ */}
+              {months.length > 0 && (
+                <div className="mt-3 flex gap-1 overflow-x-auto border-b border-neutral-200">
+                  {["all", ...months].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-current={month === m ? "true" : undefined}
+                      onClick={() => setMonth(m)}
+                      className={`shrink-0 px-3 pb-2 text-sm transition-colors ${
+                        month === m
+                          ? "border-b-2 border-neutral-900 text-neutral-900"
+                          : "text-neutral-500 hover:text-neutral-900"
+                      }`}
+                    >
+                      {m === "all"
+                        ? "Todo"
+                        : new Date(`${m}-01T00:00:00`).toLocaleDateString("es-PE", {
+                            month: "short",
+                            year: "2-digit",
+                          })}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="mt-3 flex flex-col gap-2">
                 {filteredPostbacks.length === 0 ? (
                   <EmptyRow>No hay movimientos en esta vista.</EmptyRow>
@@ -333,26 +351,7 @@ export default function CuentaPage() {
           </Tabs>
         </section>
 
-        {/* 4. 設定・規約 */}
-        <section className="mt-6">
-          <h2 className="px-1 text-xs text-neutral-500">Ayuda y legal</h2>
-          <div className="mt-2 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-            {LEGAL_LINKS.map(({ href, label, icon: Icon }, i) => (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-neutral-50 ${
-                  i > 0 ? "border-t border-neutral-100" : ""
-                }`}
-              >
-                <Icon className="h-5 w-5 shrink-0 text-neutral-400" />
-                <span className="flex-1 text-sm text-neutral-900">{label}</span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-neutral-300" />
-              </Link>
-            ))}
-          </div>
-        </section>
-
+        {/* 規約類はハンバーガーメニューに集約したため、ここにはログアウトだけを置く */}
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: "/" })}
