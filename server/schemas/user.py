@@ -9,5 +9,6 @@ class MeResponse(BaseModel):
     name: Optional[str]
     avatar_url: Optional[str]
     points: int
+    is_admin: bool = False
     min_withdrawal_points: int
     points_per_sol: int

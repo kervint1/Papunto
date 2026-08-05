@@ -23,3 +23,13 @@ def get_current_user(
     if user is None:
         raise ApiError(401, "USER_NOT_FOUND", "Usuario no encontrado")
     return user
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    """管理APIの入口。管理者以外は403で弾く。
+
+    フロント側でも/admin配下を隠すが、それは表示上の都合にすぎない。権限判定はここが正
+    """
+    if not user.is_admin:
+        raise ApiError(403, "FORBIDDEN", "No tienes permiso para acceder")
+    return user

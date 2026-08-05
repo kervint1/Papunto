@@ -19,6 +19,7 @@ export interface Me {
   name: string | null;
   avatar_url: string | null;
   points: number;
+  is_admin: boolean;
   min_withdrawal_points: number;
   points_per_sol: number;
 }
@@ -203,4 +204,218 @@ export async function createTopUp(
 export async function getTopUps(token: string): Promise<{ topups: TopUp[] }> {
   const res = await apiFetch<{ topups: TopUp[] }>("/api/v1/topups", token);
   return { topups: res.topups.map(normalizeTopUp) };
+}
+
+// ---------------------------------------------------------------- Admin
+
+export interface PageMeta {
+  page: number;
+  per_page: number;
+  total: number;
+}
+
+export interface AdminStats {
+  users_total: number;
+  users_new_7d: number;
+  points_outstanding: number;
+  withdrawals_pending: number;
+  topups_processing: number;
+  complaints_pendientes: number;
+  postbacks_pending: number;
+  postback_logs_unverified_7d: number;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string | null;
+  avatar_url: string | null;
+  points: number;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export interface AdminWithdrawal {
+  id: string;
+  user_id: number;
+  user_email: string | null;
+  yape_phone: string;
+  points: number;
+  amount_soles: number;
+  status: "pending" | "completed" | "rejected";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminPostback {
+  id: string;
+  provider: string;
+  transaction_id: string;
+  user_id: number;
+  user_email: string | null;
+  reward_points: number;
+  payout_usd: number | null;
+  campaign_name: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+}
+
+export interface AdminPostbackLog {
+  id: string;
+  provider: string;
+  transaction_id: string | null;
+  http_method: string;
+  verified: boolean;
+  remote_ip: string;
+  received_at: string;
+  params: Record<string, unknown>;
+}
+
+export interface AdminTopUp {
+  id: string;
+  user_id: number;
+  user_email: string | null;
+  phone_number: string;
+  operator_name: string;
+  points: number;
+  amount_soles: number;
+  status: "processing" | "completed" | "failed";
+  failure_reason: string | null;
+  created_at: string;
+}
+
+export interface AdminComplaint {
+  id: string;
+  number: number | null;
+  tipo: string;
+  consumidor_nombre: string;
+  consumidor_email: string;
+  consumidor_telefono: string | null;
+  bien_tipo: string;
+  bien_descripcion: string;
+  monto_reclamado: number | null;
+  detalle: string;
+  pedido: string;
+  status: string;
+  created_at: string;
+}
+
+export interface AdminLog {
+  id: string;
+  admin_user_id: number;
+  admin_email: string | null;
+  action: string;
+  target_type: string;
+  target_id: string;
+  detail: Record<string, unknown>;
+  note: string | null;
+  created_at: string;
+}
+
+export interface AdminUserDetail {
+  user: AdminUser;
+  postbacks: AdminPostback[];
+  withdrawals: AdminWithdrawal[];
+  topups: AdminTopUp[];
+}
+
+function qs(params: Record<string, string | number | boolean | undefined>) {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== "") sp.set(k, String(v));
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+export function getAdminStats(token: string): Promise<AdminStats> {
+  return apiFetch<AdminStats>("/api/v1/admin/stats", token);
+}
+
+export function getAdminUsers(
+  token: string,
+  params: { q?: string; page?: number } = {}
+): Promise<{ users: AdminUser[]; page: PageMeta }> {
+  return apiFetch(`/api/v1/admin/users${qs(params)}`, token);
+}
+
+export function getAdminUser(token: string, id: number): Promise<AdminUserDetail> {
+  return apiFetch<AdminUserDetail>(`/api/v1/admin/users/${id}`, token);
+}
+
+export async function getAdminWithdrawals(
+  token: string,
+  params: { status?: string; page?: number } = {}
+): Promise<{ withdrawals: AdminWithdrawal[]; page: PageMeta }> {
+  const r = await apiFetch<{ withdrawals: AdminWithdrawal[]; page: PageMeta }>(
+    `/api/v1/admin/withdrawals${qs(params)}`,
+    token
+  );
+  return { ...r, withdrawals: r.withdrawals.map((w) => ({ ...w, amount_soles: Number(w.amount_soles) })) };
+}
+
+export function actOnWithdrawal(
+  token: string,
+  id: string,
+  action: "approve" | "reject",
+  note?: string
+): Promise<AdminWithdrawal> {
+  return apiFetch<AdminWithdrawal>(`/api/v1/admin/withdrawals/${id}/${action}`, token, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+}
+
+export function getAdminPostbacks(
+  token: string,
+  params: { status?: string; provider?: string; page?: number } = {}
+): Promise<{ postbacks: AdminPostback[]; page: PageMeta }> {
+  return apiFetch(`/api/v1/admin/postbacks${qs(params)}`, token);
+}
+
+export function getAdminOffers(token: string): Promise<{ offers: Offer[] }> {
+  return apiFetch<{ offers: Offer[] }>("/api/v1/admin/offers", token);
+}
+
+export function getAdminPostbackLogs(
+  token: string,
+  params: { verified?: boolean; provider?: string; page?: number } = {}
+): Promise<{ logs: AdminPostbackLog[]; page: PageMeta }> {
+  return apiFetch(`/api/v1/admin/postback-logs${qs(params)}`, token);
+}
+
+export async function getAdminTopUps(
+  token: string,
+  params: { status?: string; page?: number } = {}
+): Promise<{ topups: AdminTopUp[]; page: PageMeta }> {
+  const r = await apiFetch<{ topups: AdminTopUp[]; page: PageMeta }>(
+    `/api/v1/admin/topups${qs(params)}`,
+    token
+  );
+  return { ...r, topups: r.topups.map((t) => ({ ...t, amount_soles: Number(t.amount_soles) })) };
+}
+
+export function getAdminComplaints(
+  token: string,
+  params: { status?: string; page?: number } = {}
+): Promise<{ complaints: AdminComplaint[]; page: PageMeta }> {
+  return apiFetch(`/api/v1/admin/complaints${qs(params)}`, token);
+}
+
+export function respondComplaint(
+  token: string,
+  id: string,
+  note?: string
+): Promise<AdminComplaint> {
+  return apiFetch<AdminComplaint>(`/api/v1/admin/complaints/${id}/respond`, token, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+}
+
+export function getAdminLogs(
+  token: string,
+  params: { action?: string; page?: number } = {}
+): Promise<{ logs: AdminLog[]; page: PageMeta }> {
+  return apiFetch(`/api/v1/admin/logs${qs(params)}`, token);
 }

@@ -10,7 +10,7 @@
 | ポイント・換金履歴の表示 | フロントエンド → FastAPI → Heroku Postgres | 自前JWTで本人確認し、自分のデータだけ返す |
 | 報酬付与（Postback） | Monlix → FastAPI → Heroku Postgres | 二重付与防止・署名検証はサーバー側で実施 |
 | 換金申請 | フロントエンド → FastAPI → Heroku Postgres | ポイントチェックと差し引きをアトミックに行う |
-| 換金処理（送金完了・却下） | 管理者がDBクライアント（TablePlus / pgAdmin）で直接更新 | Admin画面を自作しない方針のため |
+| 換金処理（送金完了・却下） | 管理者が `/admin/withdrawals` から実行 → FastAPI → Heroku Postgres | 却下時のポイント返還・ステータス更新・監査ログを1トランザクションで行う |
 
 ## 認証（FarmMatchパターン + IDトークン検証）
 
@@ -35,6 +35,7 @@
 | GET | `/api/v1/withdrawals` | 自前JWT | 自分の換金申請履歴の取得 |
 | POST | `/api/v1/withdrawals` | 自前JWT | 換金申請の作成 |
 | GET | `/api/v1/offers` | 自前JWT | 案件一覧の取得（CPALead。subidはサーバー側で自分のIDを入れる） |
+| GET/POST | `/api/v1/admin/*` | 自前JWT＋`is_admin` | 管理画面用。ルーター単位で `require_admin` を付け、個別に書かせない |
 | GET | `/postback/monlix` | Postbackシークレット | Monlixからの成果通知受信 |
 | GET / POST | `/postback/cpalead` | 送信元IP＋Postbackシークレット | CPALeadからの成果通知受信 |
 | GET | `/dev/mock/cpalead/*` | なし | CPALeadのモック。`CPALEAD_MOCK=true` のときだけ登録される |
@@ -231,21 +232,15 @@ COMMIT;
 
 ```
 申請時:    points から消費ポイントを差し引き、withdrawals に pending で保存
-completed: 管理者がYape送金後、DBクライアントで status を completed に変更（ポイント操作なし）
-rejected:  管理者がDBクライアントで status を rejected に変更し、
-           あわせて points を戻すSQLを実行（返還）
+completed: 管理者がYape送金後、/admin/withdrawals で「承認」
+           → status を completed に更新（ポイント操作なし。申請時に差し引き済みのため）
+rejected:  管理者が /admin/withdrawals で「却下」
+           → points を返還 + status を rejected に更新 + admin_logs に記録（1トランザクション）
 ```
 
-rejected時の返還SQL（DBクライアントから実行）:
+`POST /api/v1/admin/withdrawals/{id}/approve` ／ `/reject`。どちらも対象を `FOR UPDATE` で取得し、**すでに終端状態なら409 `ALREADY_PROCESSED`** で弾く（二重送金・二重返還の防止）。
 
-```sql
-BEGIN;
-UPDATE withdrawals SET status = 'rejected', updated_at = NOW() WHERE id = :withdrawal_id;
-UPDATE users SET points = points + :points WHERE id = :user_id;
-COMMIT;
-```
-
-> ⚠️ MVPでは手動運用。件数が増えたらDBトリガー（`status` が `rejected` に変わったら自動返還）に置き換える。
+> 以前はこの2つの更新をDBクライアントから手動SQLで行う想定だったが、却下時に `UPDATE users` を打ち忘れるとユーザーの残高が消えるため、管理画面の1操作にまとめた（[04-decisions.md](./04-decisions.md)）。
 
 ポイントを申請時に差し引く理由: 差し引かないと、`pending` 中にポイントを使い回して二重申請できてしまう。「pending申請は1件まで」の制約と合わせて二重出金を防ぐ。
 
