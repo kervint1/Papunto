@@ -34,7 +34,10 @@
 | GET | `/api/v1/me` | 自前JWT | 自分のプロフィール・所持ポイント取得 |
 | GET | `/api/v1/withdrawals` | 自前JWT | 自分の換金申請履歴の取得 |
 | POST | `/api/v1/withdrawals` | 自前JWT | 換金申請の作成 |
+| GET | `/api/v1/offers` | 自前JWT | 案件一覧の取得（CPALead。subidはサーバー側で自分のIDを入れる） |
 | GET | `/postback/monlix` | Postbackシークレット | Monlixからの成果通知受信 |
+| GET / POST | `/postback/cpalead` | 送信元IP＋Postbackシークレット | CPALeadからの成果通知受信 |
+| GET | `/dev/mock/cpalead/*` | なし | CPALeadのモック。`CPALEAD_MOCK=true` のときだけ登録される |
 
 ---
 
@@ -332,3 +335,17 @@ sequenceDiagram
 - [ ] Monlix iframeのURL形式と `userid` の渡し方（サブID用パラメータ名）
 - [ ] Monlixの報酬通貨（USDで来る場合はS/への換算レートと換算タイミング）
 - [ ] Postback送信元IPのホワイトリスト可否
+- [ ] Monlixの署名検証を「シークレット未設定なら検証をスキップ」から「未設定なら付与しない」へ揃える（CPALead側は対応済み。`server/routers/postback.py` の `verify_postback_hash`）
+
+### CPALead（実装はモックで先行。契約後に実値へ差し替える）
+
+差し替えが必要な箇所は2つに閉じ込めてある。
+
+- [ ] **オファーJSONのキー名と型** → `server/services/cpalead_service.py` の `_normalize()`
+- [ ] **ポストバックのマクロ名** → `server/routers/postback.py` の `P_*` 定数
+- [ ] **署名方式**（対象パラメータと連結順） → `CPALeadService.signature_payload()`
+- [ ] **ステータス値の対応** → `CPALEAD_STATUS_MAP`（現状 0=未承認 / 1=承認 / 2=否認 を仮定）
+- [ ] **報酬の通貨単位**（USDのみか、Virtual Currency設定でポイント建てにできるか）と `CPALEAD_USD_TO_POINTS` の値
+- [ ] **期待レスポンス**（現状は既存Monlix実装に揃えて403/404/422を返す。常時200を返しボディの値で結果を区別する仕様の提供元もある）
+- [ ] **送信元IP** → `CPALEAD_ALLOWED_IPS`。未設定のまま `CPALEAD_MOCK=false` にすると全て拒否される
+- [ ] **オファーリンクにカスタムパラメータを引き回せるか**（`digest` によるsubid改ざん検知が使えるかの判断材料）

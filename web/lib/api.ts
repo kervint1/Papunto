@@ -34,8 +34,22 @@ export interface Withdrawal {
 
 export interface Postback {
   id: string;
+  provider: string;
   reward_points: number;
+  campaign_name: string | null;
+  status: "pending" | "approved" | "rejected";
   created_at: string;
+}
+
+export interface Offer {
+  campaign_id: string;
+  title: string;
+  description: string | null;
+  points: number;
+  link: string;
+  image_url: string | null;
+  conversion: string | null;
+  device: string | null;
 }
 
 export interface ComplaintInput {
@@ -126,6 +140,11 @@ export function getPostbacks(
   token: string
 ): Promise<{ postbacks: Postback[] }> {
   return apiFetch<{ postbacks: Postback[] }>("/api/v1/postbacks", token);
+}
+
+// 案件一覧。subidはサーバー側で認証済みユーザーのIDが入るため、ここでは渡さない
+export function getOffers(token: string): Promise<{ offers: Offer[] }> {
+  return apiFetch<{ offers: Offer[] }>("/api/v1/offers", token);
 }
 
 // Libro de Reclamaciones: acceso público, no requiere token
