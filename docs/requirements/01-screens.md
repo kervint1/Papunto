@@ -37,7 +37,9 @@
 | タスク実行 | タスク詳細確認・外部サイト誘導・条件達成はMonlix iframe内で完結する |
 | 報酬反映 | iframe内でタスク完了後、Webhook経由でポイントを更新する |
 
-### ③ ウォレット（Wallet）`/wallet`
+### ③ ウォレット（Wallet）`/wallet` ※⑥に統合済み
+
+> ⚠️ **この画面は⑥ Cuenta に統合済み**（2026-08-05）。ポイント残高・交換履歴・換金CTAはすべて `/cuenta` にある。`/wallet` はリンク切れを避けるため `/cuenta` へリダイレクトするだけの存在。以下は統合前の記録。
 
 ヘッダー右端の**ポイントピル**から遷移。ポイント残高と交換履歴を見る画面。
 
@@ -71,6 +73,29 @@
 | アクション | 「Solicitar canje」ボタン（最低500 pts未満・pending申請ありの場合は押せない）。成功後は `/wallet` へ遷移 |
 | 未対応の交換先 | `available: false`（PayPal等）や不正なIDの場合は「este destino no está disponible」を表示 |
 
+### ⑥ アカウント／マイページ（Cuenta）`/cuenta`
+
+ヘッダー右端の**ポイント表示**から遷移。アカウント情報とポイント通帳を集約した、ログイン後のハブ画面。**旧 `/wallet`（③）を統合した**（同じ履歴が2画面にあると導線が分かれるため、`/wallet` は `/cuenta` へリダイレクト）。
+
+モッピーのマイページを実物（ログイン後のHTML＋スクリーンショット）で確認し、その情報設計に合わせている。
+
+| 項目 | 内容 |
+| --- | --- |
+| 目的 | アカウント確認、ポイント状況、履歴（通帳）の閲覧、換金への導線、ログアウト |
+| ① アカウント | Googleのアバター・名前・メール、会員番号（`users.id` を8桁ゼロ埋め）＋**コピーボタン** |
+| ② ポイント | 所持ポイント（大）、S/換算、**「Puntos en revisión」（判定中ポイント＝pendingな成果の合計）を並記**、「Canjear puntos」ボタン、最低換金ポイント |
+| ③ 通帳 | タブ3つ（Ganados／Canjes／Recargas）。Ganados内に状態フィルタのpill（Todos／En revisión／Aprobados／Rechazados）。空状態と、承認後に残高へ入る旨の注記（強調は赤） |
+| ④ Ayuda y legal | 規約・プライバシー・クッキー・苦情記録簿へのリスト |
+| ログアウト | `signOut({ callbackUrl: "/" })` でランディングへ戻す |
+| レイアウト | 1カラム（コンテンツ幅 max-w-3xl） |
+
+**モッピーとの意図的な差分**
+
+- **配色は寄せない**。モッピーはティール `#23c2b7` ＋コーラル `#ff6f61` だが、papuntoは既存の黄色＋ニュートラルを維持する（ロゴ・フッター・各ポイントカードと統一するため。Figmaの正もそちら）
+- **会員ランク制度は作らない**。モッピーのマイページの主要要素だが、papuntoに制度自体がない
+- **リストメニューはハンバーガーに入れない**。モッピーは各種導線をハンバーガー内に持つが、papuntoは画面数が少ないためヘッダー直置き＋`/cuenta` 下部のリストで足りる
+- 状態フィルタに「Todos」を足している（モッピーは判定中/承認/否認/コイン明細の4つで既定が判定中。papuntoは件数が少ないため全件表示を既定にする）
+
 ### ④ 管理者ダッシュボード（Admin）
 
 ユーザーには見せない運営者専用の管理機能。
@@ -96,14 +121,27 @@
 Monlix iframe内でタスク詳細確認・外部サイト誘導・条件達成
         ↓ Webhookでポイントが増える
 ② Home `/home`
-        ↓ ヘッダーの「Canjear」またはWalletのCTA
+        ↓ ヘッダーの「Canjear」または Cuenta のCTA
 ④ Exchange `/exchange`
         ↓ 交換先（Yape）を選ぶ
 ⑤ Exchange Destination `/exchange/yape`
-        ↓ 条件確認・換金申請 → /wallet へ遷移
+        ↓ 条件確認・換金申請 → /cuenta へ遷移
 管理者がDBクライアント（TablePlus等）で確認
         ↓ Yape Empresaで手動送金し、ステータスを更新
-③ Wallet `/wallet` の履歴が「送金完了」に更新
+⑥ Cuenta `/cuenta` の通帳（Canjesタブ）が「Pagado」に更新
+```
+
+ログイン後はどの画面からもヘッダー右端の**ポイント表示**で `/cuenta` に入れる。`/cuenta` がポイント・履歴・規約類のハブで、ログアウトの出口もここだけに置く。
+
+```
+② Home / ④⑤ Exchange
+        ↓ ヘッダー右端のポイント表示（アバター＋名前＋pts）
+⑥ Cuenta `/cuenta`
+        ├→ アカウント情報（会員番号のコピー）
+        ├→ ポイント（所持／判定中）→ Canjear `/exchange`
+        ├→ 通帳: Ganados（Todos/En revisión/Aprobados/Rechazados）／Canjes／Recargas
+        ├→ 規約・プライバシー・クッキー・苦情記録簿
+        └→ Cerrar sesión → ⓪ ルートページ `/`
 ```
 
 ## MVPで作るべき画面一覧
@@ -113,9 +151,10 @@ Monlix iframe内でタスク詳細確認・外部サイト誘導・条件達成
 | ⓪ | Landing | `/` | 高 | 未ログインユーザー向けLP |
 | ① | Auth | `/login` | 高 | ログイン・登録 |
 | ② | Home | `/home` | 最高 | 報酬確認・Monlix iframe表示 |
-| ③ | Wallet | `/wallet` | 高 | ポイント確認・交換履歴 |
+| ③ | Wallet | `/wallet` | — | ⑥に統合。`/cuenta` へリダイレクト |
 | ④ | Exchange | `/exchange` | 高 | 交換先の選択 |
 | ⑤ | Exchange Destination | `/exchange/[destination]` | 高 | 交換条件の提示・換金申請 |
+| ⑥ | Cuenta | `/cuenta` | 高 | アカウント情報・ポイント・通帳・ログアウト |
 
 管理者向け機能（換金申請の確認・処理）は自作のAdmin画面ではなく、DBクライアントでHeroku Postgresに直接接続して代替する。
 
@@ -124,7 +163,7 @@ Monlix iframe内でタスク詳細確認・外部サイト誘導・条件達成
 - 未ログイン時の入口は `/` に集約し、画面タップで `/login` へ誘導する
 - 認証画面はNextAuth.js（Google Provider）を使い、自作しない
 - ユーザー向け画面は白背景＋黄色アクセントで統一する
-- Webアプリなのでナビゲーションは**ヘッダー**（ロゴ＋Tareasリンク＋Canjearボタン＋所持ポイントピル）。モバイルアプリ風のボトムナビは使わない
+- Webアプリなのでナビゲーションは**ヘッダー**（ロゴ＋Tareasリンク＋Canjearボタン＋アカウント表示〈アバター＋名前＋所持ポイント〉）。モバイルアプリ風のボトムナビは使わない
 - モバイル1カラム〜デスクトップ複数カラムのレスポンシブレイアウト（コンテンツ幅 max-w-5xl）
 - タスク一覧・詳細確認・外部誘導はMonlix iframe内に任せる
 - Home画面では所持ポイント・プログレスバー・Monlix iframe表示に集中する

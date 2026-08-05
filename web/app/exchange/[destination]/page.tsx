@@ -43,7 +43,7 @@ export default function ExchangeDestinationPage() {
     try {
       await createWithdrawal(token, phone, inputPoints);
       await refresh();
-      router.push("/wallet");
+      router.push("/cuenta");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error inesperado");
       setSubmitting(false);
@@ -53,7 +53,7 @@ export default function ExchangeDestinationPage() {
   if (!destination || !destination.available) {
     return (
       <div className="min-h-screen w-full bg-neutral-50">
-        <Header points={points} />
+        <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
         <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
           <Link
             href="/exchange"
@@ -72,7 +72,7 @@ export default function ExchangeDestinationPage() {
 
   return (
     <div className="min-h-screen w-full bg-neutral-50">
-      <Header points={points} />
+      <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
 
       <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
         <Link
