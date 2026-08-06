@@ -195,6 +195,23 @@ Monlix iframe内でタスク詳細確認・外部サイト誘導・条件達成
 - 管理業務はデザインよりも運用効率を優先する（DBクライアントを使う）
 - ユーザー体験の中心は「Monlixでタスク完了 → Webhookでポイント反映 → 換金申請」
 
+## SEO
+
+ペルー市場向けのスペイン語**単一版**。他言語・他地域版を持たないため、`hreflang` による出し分けは行わない（複数バージョンが無い状態で `hreflang` を書いても意味がない）。代わりに、地域を含めたロケール指定で対象市場を明示する。
+
+| 項目 | 内容 |
+| --- | --- |
+| 言語・地域 | `<html lang="es-PE">`、OGPは `og:locale = es_PE` |
+| 基点URL | `NEXT_PUBLIC_SITE_URL`（Vercelの環境変数）。canonical・OGP・sitemapの絶対URLがここから組み立てられる。**未設定のまま本番に出すとlocalhostのURLが検索エンジンに渡る** |
+| タイトル | ルートで `template: "%s \| Papunto"` を定義。下位ページは自分の名前だけ書く |
+| 構造化データ | `WebSite` ＋ `Organization`（`areaServed: Perú`）のJSON-LDをルートlayoutに埋め込む |
+| `robots.txt` | `app/robots.ts` で生成。ログイン後の画面と `/admin` をDisallow |
+| `sitemap.xml` | `app/sitemap.ts` で生成。**未ログインで見られるページのみ**を列挙 |
+| noindex | `/home` `/cuenta` `/wallet` `/exchange` `/admin` の各layoutで `robots: { index: false }`。robots.txtはクロール制御、noindexはインデックス制御で役割が違うため両方入れる |
+| ファビコン・OGP画像 | 画像アセットを持たないため `app/icon.tsx` / `app/opengraph-image.tsx` でロゴのトーン（黄色＋💰）から生成 |
+
+> ⚠️ 文言は**ポイント制**に合わせる。「現金がもらえる」と読める表現は規約上の問題があるため使わない（[04-decisions.md](./04-decisions.md) 2026-07-23）。metadataの説明文も「puntos … cámbialos por dinero en tu billetera Yape」と、ポイントを獲得して交換する流れで書いている。
+
 ## UI/UXデザイン
 
 デザインの正は **Figma Make「MVP画面設計」**（https://www.figma.com/make/jZqyJ7wMrsMRDhO289kRHj/MVP%E7%94%BB%E9%9D%A2%E8%A8%AD%E8%A8%88 ）。実装はこのデザインを **shadcn/ui + Tailwind CSS** で再現する（shadcnコンポーネントは `web/components/ui/` にソースとして配置）。
