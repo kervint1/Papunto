@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Política de privacidad",
+  description: "Cómo Papunto trata tus datos personales conforme a la Ley N° 29733 de Protección de Datos Personales del Perú.",
+  alternates: { canonical: "/privacidad" },
+};
 
 import { Logo } from "@/components/Logo";
 

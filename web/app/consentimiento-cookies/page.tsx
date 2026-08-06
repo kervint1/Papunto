@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Consentimiento de cookies",
+  description: "Gestiona tu consentimiento para el uso de cookies en Papunto.",
+  alternates: { canonical: "/consentimiento-cookies" },
+};
 
 import { Logo } from "@/components/Logo";
 

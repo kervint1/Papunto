@@ -1,19 +1,77 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
+
 import { Header } from "@/components/Header";
 import { Progress } from "@/components/ui/progress";
 import { useMe } from "@/hooks/useMe";
+import { getOffers, type Offer } from "@/lib/api";
 
 const MONLIX_IFRAME_URL = process.env.NEXT_PUBLIC_MONLIX_IFRAME_URL;
 
-const MOCK_TASKS = Array.from({ length: 10 }, (_, i) => ({
-  id: i + 1,
-  title: `Tarea de ejemplo ${i + 1}`,
-  points: (i + 1) * 250,
-}));
+function OfferGrid({ offers }: { offers: Offer[] }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3 p-6">
+      {offers.map((offer) => (
+        <a
+          key={offer.campaign_id}
+          href={offer.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 p-4 text-center transition hover:border-yellow-400 hover:shadow-sm"
+        >
+          {offer.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={offer.image_url}
+              alt=""
+              className="h-12 w-12 rounded-full object-cover"
+            />
+          ) : (
+            <div className="h-12 w-12 rounded-full bg-yellow-100" />
+          )}
+          <div className="text-sm text-neutral-900">{offer.title}</div>
+          {offer.conversion && (
+            <div className="text-xs text-neutral-500">{offer.conversion}</div>
+          )}
+          <span className="text-xs text-yellow-600">
+            +{offer.points.toLocaleString("es-PE")} pts
+          </span>
+        </a>
+      ))}
+    </div>
+  );
+}
 
 export default function HomePage() {
-  const { me } = useMe();
+  const { me, token, refresh } = useMe();
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offersError, setOffersError] = useState(false);
+  const [loadingOffers, setLoadingOffers] = useState(true);
+
+  const useIframe = Boolean(MONLIX_IFRAME_URL && me);
+
+  useEffect(() => {
+    if (!token || useIframe) return;
+    setLoadingOffers(true);
+    getOffers(token)
+      .then((r) => {
+        setOffers(r.offers);
+        setOffersError(false);
+      })
+      .catch(() => setOffersError(true))
+      .finally(() => setLoadingOffers(false));
+  }, [token, useIframe]);
+
+  // 案件は別タブで開くため、戻ってきたタイミングで残高を取り直す
+  const onVisible = useCallback(() => {
+    if (document.visibilityState === "visible") refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [onVisible]);
 
   const points = me?.points ?? 0;
   const minPoints = me?.min_withdrawal_points ?? 500;
@@ -22,7 +80,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen w-full bg-neutral-50">
-      <Header points={points} />
+      <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
 
       <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         {/* Points / progress card */}
@@ -49,36 +107,30 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Monlix iframe: tareas, detalle y verificación las maneja Monlix */}
+        {/* Tareas: Monlix las sirve en un iframe; con CPALead pintamos la lista nosotros */}
         <div className="mt-8">
           <h2>Tareas con recompensa</h2>
           <div className="mt-4 overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm">
-            {MONLIX_IFRAME_URL && me ? (
+            {useIframe ? (
               <iframe
-                src={`${MONLIX_IFRAME_URL}&subid=${me.id}`}
+                src={`${MONLIX_IFRAME_URL}&subid=${me!.id}`}
                 className="h-[70vh] w-full border-0"
                 title="Tareas"
               />
+            ) : loadingOffers ? (
+              <p className="p-6 text-center text-sm text-neutral-400">
+                Cargando tareas...
+              </p>
+            ) : offersError ? (
+              <p className="p-6 text-center text-sm text-neutral-400">
+                No pudimos cargar las tareas. Inténtalo de nuevo más tarde.
+              </p>
+            ) : offers.length === 0 ? (
+              <p className="p-6 text-center text-sm text-neutral-400">
+                No hay tareas disponibles en este momento.
+              </p>
             ) : (
-              <div className="p-6">
-                <p className="mb-4 text-center text-xs text-neutral-400">
-                  Vista previa (pendiente de contrato con Monlix)
-                </p>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
-                  {MOCK_TASKS.map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 p-4 text-center"
-                    >
-                      <div className="h-12 w-12 rounded-full bg-yellow-100" />
-                      <div className="text-sm text-neutral-900">{task.title}</div>
-                      <span className="text-xs text-yellow-600">
-                        +{task.points.toLocaleString("es-PE")} pts
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <OfferGrid offers={offers} />
             )}
           </div>
         </div>

@@ -13,7 +13,7 @@ export default function ExchangePage() {
 
   return (
     <div className="min-h-screen w-full bg-neutral-50">
-      <Header points={points} />
+      <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
 
       <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <h1>Canjear puntos</h1>

@@ -77,7 +77,7 @@ export default function RecargaCelularPage() {
     try {
       await createTopUp(token, phone, operator.operator_id, inputPoints);
       await refresh();
-      router.push("/wallet");
+      router.push("/cuenta");
     } catch (err) {
       if (err instanceof ApiError && err.code === "OPERATOR_MISMATCH") {
         // 番号のキャリアが変わっていた場合: 再検出させて確認を促す
@@ -92,7 +92,7 @@ export default function RecargaCelularPage() {
 
   return (
     <div className="min-h-screen w-full bg-neutral-50">
-      <Header points={points} />
+      <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
 
       <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
         <Link

@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Política de cookies",
+  description: "Qué cookies usa Papunto, para qué sirven y cómo puedes gestionarlas.",
+  alternates: { canonical: "/cookies" },
+};
 
 import { Logo } from "@/components/Logo";
 

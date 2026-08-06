@@ -15,6 +15,35 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 MONLIX_POSTBACK_SECRET = os.getenv("MONLIX_POSTBACK_SECRET", "")
 
+# 自サーバーの公開URL。モックのオファーURL・クリックページの組み立てに使う
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
+
+# --- CPALead（オファーウォール。契約前はモックで通しの動作を確認する） ---
+CPALEAD_MOCK = os.getenv("CPALEAD_MOCK", "true").lower() in ("1", "true", "yes")
+CPALEAD_API_KEY = os.getenv("CPALEAD_API_KEY", "")
+CPALEAD_POSTBACK_SECRET = os.getenv("CPALEAD_POSTBACK_SECRET", "")
+# 許可する送信元IP（カンマ区切り）。契約後にCPALeadのダッシュボードで確認して設定する
+CPALEAD_ALLOWED_IPS = [ip.strip() for ip in os.getenv("CPALEAD_ALLOWED_IPS", "").split(",") if ip.strip()]
+CPALEAD_USD_TO_POINTS = int(os.getenv("CPALEAD_USD_TO_POINTS", "300"))
+
+# モック時だけ開発用の既定値を入れる。こうしておくと本番（CPALEAD_MOCK=false）で
+# 設定漏れがあった場合に「検証をスキップして誰でも付与できる」ではなく
+# 「検証に失敗して付与しない」という安全側に倒れる
+if CPALEAD_MOCK:
+    CPALEAD_API_KEY = CPALEAD_API_KEY or "mock-cpalead-api-key"
+    CPALEAD_POSTBACK_SECRET = CPALEAD_POSTBACK_SECRET or "mock-cpalead-postback-secret"
+
+CPALEAD_API_BASE = (
+    f"{PUBLIC_BASE_URL}/dev/mock/cpalead" if CPALEAD_MOCK
+    else "https://www.cpalead.com/api"
+)
+
+# 1件の成果で付与できるポイントの上限。
+# 報酬額はポストバックのペイロードをそのまま信じており、署名対象にも含まれないうえ、
+# サーバー側に期待額を持つ仕組みもない。上流のバグ・桁誤り・テストデータの本番混入による
+# 異常付与を検知して遮断する防御層として設ける（実際の単価から十分マージンを取った値）
+MAX_REWARD_POINTS = int(os.getenv("MAX_REWARD_POINTS", "100000"))
+
 # ポイント制: 現金額を直接持たず整数ポイントで管理する（規約対応）
 POINTS_PER_SOL = int(os.getenv("POINTS_PER_SOL", "100"))          # 100 pts = S/ 1（1pt = 1céntimo）
 MIN_WITHDRAWAL_POINTS = int(os.getenv("MIN_WITHDRAWAL_POINTS", "500"))  # = S/ 5
