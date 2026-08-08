@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   ClipboardList,
+  FileText,
   FileWarning,
   LayoutDashboard,
   Megaphone,
@@ -60,6 +61,17 @@ const GROUPS: { title: string; items: Item[] }[] = [
   {
     title: "Usuarios",
     items: [{ href: "/admin/users", label: "Usuarios", icon: Users }],
+  },
+  {
+    title: "Contenido",
+    items: [
+      {
+        href: "/admin/posts",
+        label: "Artículos",
+        icon: FileText,
+        badge: (s) => s.posts_draft,
+      },
+    ],
   },
   {
     title: "Campañas",

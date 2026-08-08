@@ -1,0 +1,311 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { marked } from "marked";
+
+import {
+  deleteAdminPost,
+  getAdminPost,
+  setPostPublished,
+  updateAdminPost,
+  type AdminPost,
+} from "@/lib/api";
+import { Card, PageTitle, StatusBadge, fmtDate, useAdminToken } from "../../ui";
+
+/** 本文プレビュー。
+ *
+ * MarkdownをHTMLにしてsandbox付きiframeで描画する。srcDocに直接入れず
+ * sandboxを空にすることでスクリプトが動かないため、AIが生成した本文を
+ * 管理者が開いても管理画面のセッションに触れられない。
+ */
+function Preview({ markdown }: { markdown: string }) {
+  const html = useMemo(() => {
+    const body = marked.parse(markdown ?? "", { async: false }) as string;
+    return `<!doctype html><meta charset="utf-8">
+      <style>
+        body{font-family:system-ui,sans-serif;line-height:1.9;color:#3a3d44;padding:16px;margin:0}
+        h1,h2,h3{color:#1f2126;line-height:1.35}
+        h2{border-bottom:1px solid #e5e5e5;padding-bottom:6px;margin-top:2em}
+        a{color:#0d80c4}
+        table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #e5e5e5;padding:8px;text-align:left}
+        th{background:#f6f7f9}
+        blockquote{border-left:4px solid #e5e5e5;margin:0;padding-left:12px;color:#71747c}
+        img{max-width:100%}
+        code{background:#f6f7f9;padding:2px 4px;border-radius:4px}
+      </style>${body}`;
+  }, [markdown]);
+
+  return (
+    <iframe
+      title="Vista previa"
+      sandbox=""
+      srcDoc={html}
+      className="h-[32rem] w-full rounded-lg border border-neutral-200 bg-white"
+    />
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs text-neutral-500">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-neutral-400">{hint}</span>}
+    </label>
+  );
+}
+
+const input =
+  "mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900";
+
+export default function PostEditor() {
+  const token = useAdminToken();
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+
+  const [post, setPost] = useState<AdminPost | null>(null);
+  const [form, setForm] = useState({ title: "", description: "", body: "", tags: "", slug: "" });
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [tab, setTab] = useState<"edit" | "preview">("edit");
+  const loadedId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!token || !params?.id || loadedId.current === params.id) return;
+    loadedId.current = params.id;
+    getAdminPost(token, params.id)
+      .then((p) => {
+        setPost(p);
+        setForm({
+          title: p.title,
+          description: p.description,
+          body: p.body,
+          tags: p.tags.join(", "),
+          slug: p.slug,
+        });
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Error"));
+  }, [token, params?.id]);
+
+  const set = (key: keyof typeof form) => (v: string) => {
+    setForm((f) => ({ ...f, [key]: v }));
+    setDirty(true);
+  };
+
+  const save = useCallback(async () => {
+    if (!token || !post) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateAdminPost(token, post.id, {
+        title: form.title,
+        description: form.description,
+        body: form.body,
+        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        // 公開後はURLを変えられないので送らない
+        ...(post.status === "published" ? {} : { slug: form.slug }),
+      });
+      setPost(updated);
+      setForm((f) => ({ ...f, slug: updated.slug }));
+      setSavedAt(new Date());
+      setDirty(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }, [token, post, form]);
+
+  // 離脱時に未保存の変更を警告する（自動保存は入れていない）
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirty) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const togglePublish = async () => {
+    if (!token || !post) return;
+    const publishing = post.status !== "published";
+    if (dirty && !confirm("保存していない変更があります。このまま続けますか？")) return;
+    try {
+      setPost(await setPostPublished(token, post.id, publishing));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  const remove = async () => {
+    if (!token || !post) return;
+    if (!confirm(`「${post.title}」を削除しますか？元に戻せません。`)) return;
+    try {
+      await deleteAdminPost(token, post.id);
+      router.push("/admin/posts");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  if (error && !post) return <p className="text-sm text-red-600">{error}</p>;
+  if (!post) return <p className="text-sm text-neutral-400">Cargando...</p>;
+
+  const published = post.status === "published";
+
+  return (
+    <>
+      <Link href="/admin/posts" className="text-sm text-neutral-500 hover:underline">
+        ← Artículos
+      </Link>
+
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+        <PageTitle
+          title={form.title || "(sin título)"}
+          sub={published ? `Publicado: ${fmtDate(post.published_at ?? post.updated_at)}` : "Borrador"}
+        />
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge status={published ? "approved" : "pending"} />
+          {published && (
+            <a
+              href={`/blog/posts/${post.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:bg-neutral-50"
+            >
+              Ver
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={togglePublish}
+            className={`rounded-lg px-4 py-1.5 text-sm ${
+              published
+                ? "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                : "bg-green-600 text-white hover:bg-green-700"
+            }`}
+          >
+            {published ? "Despublicar" : "Publicar"}
+          </button>
+          <button
+            type="button"
+            disabled={saving || !dirty}
+            onClick={save}
+            className="rounded-lg bg-neutral-900 px-4 py-1.5 text-sm text-white disabled:opacity-40"
+          >
+            {saving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {savedAt && !dirty && (
+        <p className="mb-3 text-xs text-neutral-400">
+          Guardado a las {savedAt.toLocaleTimeString("es-PE")}
+        </p>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* 本文 */}
+        <div className="lg:col-span-2">
+          <Card className="p-4">
+            <div className="mb-3 flex gap-2">
+              {(["edit", "preview"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  className={`rounded-full px-3.5 py-1.5 text-sm ${
+                    tab === t
+                      ? "bg-neutral-900 text-white"
+                      : "border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                  }`}
+                >
+                  {t === "edit" ? "Markdown" : "Vista previa"}
+                </button>
+              ))}
+            </div>
+
+            {tab === "edit" ? (
+              <textarea
+                value={form.body}
+                onChange={(e) => set("body")(e.target.value)}
+                spellCheck={false}
+                placeholder={"## Subtítulo\n\nEscribe aquí en Markdown."}
+                className="h-[32rem] w-full resize-y rounded-lg border border-neutral-200 p-3 font-mono text-sm leading-relaxed"
+              />
+            ) : (
+              <Preview markdown={form.body} />
+            )}
+          </Card>
+        </div>
+
+        {/* メタ情報 */}
+        <div className="flex flex-col gap-4">
+          <Card className="space-y-4 p-4">
+            <Field label="Título">
+              <input value={form.title} onChange={(e) => set("title")(e.target.value)} className={input} />
+            </Field>
+
+            <Field
+              label="Descripción"
+              hint="Aparece en Google y en la lista. 120–160 caracteres."
+            >
+              <textarea
+                value={form.description}
+                onChange={(e) => set("description")(e.target.value)}
+                rows={3}
+                className={`${input} resize-y`}
+              />
+              <span className="mt-1 block text-right text-xs text-neutral-400">
+                {form.description.length}
+              </span>
+            </Field>
+
+            <Field
+              label="URL"
+              hint={
+                published
+                  ? "No se puede cambiar después de publicar (se perdería el posicionamiento)."
+                  : "Se genera del título si lo dejas vacío."
+              }
+            >
+              <input
+                value={form.slug}
+                onChange={(e) => set("slug")(e.target.value)}
+                disabled={published}
+                className={`${input} ${published ? "bg-neutral-50 text-neutral-400" : ""}`}
+              />
+            </Field>
+
+            <Field label="Etiquetas" hint="Separadas por comas. Definen la categoría en el blog.">
+              <input value={form.tags} onChange={(e) => set("tags")(e.target.value)} className={input} />
+            </Field>
+          </Card>
+
+          {!published && (
+            <button
+              type="button"
+              onClick={remove}
+              className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              Eliminar borrador
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

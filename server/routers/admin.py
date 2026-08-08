@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 from database import get_session
 from dependencies import require_admin
 from errors import ApiError
-from models import AdminLog, Complaint, Postback, PostbackLog, TopUp, User, Withdrawal
+from models import AdminLog, Complaint, Post, Postback, PostbackLog, TopUp, User, Withdrawal
 from schemas.admin import (
     AdminComplaintList,
     AdminComplaintRead,
@@ -107,6 +107,7 @@ def stats(session: Session = Depends(get_session)):
         postback_logs_unverified_7d=count(
             PostbackLog, PostbackLog.verified == False, PostbackLog.received_at >= week_ago  # noqa: E712
         ),
+        posts_draft=count(Post, Post.status == "draft"),
     )
     _stats_cache["value"] = result
     _stats_cache["at"] = time.time()

@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 import config
 from errors import ApiError
-from routers import admin, auth, complaints, me, offers, postback, postbacks, topups, withdrawals
+from routers import admin, auth, complaints, me, offers, postback, postbacks, posts, topups, withdrawals
 
 # テーブル作成・変更はAlembicマイグレーションで行う（alembic upgrade head）
 app = FastAPI(title="Papunto API")
@@ -42,6 +42,8 @@ app.include_router(complaints.router)
 app.include_router(topups.router)
 app.include_router(offers.router)
 app.include_router(admin.router)
+app.include_router(posts.public_router)
+app.include_router(posts.admin_router)
 
 if config.CPALEAD_MOCK:
     # 本番で誤って有効になっていた場合に気づけるよう、起動時に警告を出す

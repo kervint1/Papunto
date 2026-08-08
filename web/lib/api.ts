@@ -223,6 +223,7 @@ export interface AdminStats {
   complaints_pendientes: number;
   postbacks_pending: number;
   postback_logs_unverified_7d: number;
+  posts_draft: number;
 }
 
 export interface AdminUser {
@@ -418,4 +419,77 @@ export function getAdminLogs(
   params: { action?: string; page?: number } = {}
 ): Promise<{ logs: AdminLog[]; page: PageMeta }> {
   return apiFetch(`/api/v1/admin/logs${qs(params)}`, token);
+}
+
+// ---------------------------------------------------------------- Posts (メディア記事)
+
+export interface AdminPost {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+  tags: string[];
+  image_url: string | null;
+  author: string | null;
+  status: "draft" | "published";
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function getAdminPosts(
+  token: string,
+  params: { status?: string; q?: string; page?: number } = {}
+): Promise<{ posts: AdminPost[]; page: PageMeta }> {
+  return apiFetch(`/api/v1/admin/posts${qs(params)}`, token);
+}
+
+export function getAdminPost(token: string, id: string): Promise<AdminPost> {
+  return apiFetch<AdminPost>(`/api/v1/admin/posts/${id}`, token);
+}
+
+export function createAdminPost(
+  token: string,
+  body: { title: string; description?: string; body?: string; tags?: string[] }
+): Promise<AdminPost> {
+  return apiFetch<AdminPost>("/api/v1/admin/posts", token, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateAdminPost(
+  token: string,
+  id: string,
+  body: Partial<Pick<AdminPost, "slug" | "title" | "description" | "body" | "tags" | "image_url" | "author">>
+): Promise<AdminPost> {
+  return apiFetch<AdminPost>(`/api/v1/admin/posts/${id}`, token, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function setPostPublished(
+  token: string,
+  id: string,
+  published: boolean
+): Promise<AdminPost> {
+  return apiFetch<AdminPost>(
+    `/api/v1/admin/posts/${id}/${published ? "publish" : "unpublish"}`,
+    token,
+    { method: "POST" }
+  );
+}
+
+export async function deleteAdminPost(token: string, id: string): Promise<void> {
+  await fetch(`${API_URL}/api/v1/admin/posts/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new ApiError(body?.error ?? { code: "UNKNOWN", message: "Error de conexión" });
+    }
+  });
 }

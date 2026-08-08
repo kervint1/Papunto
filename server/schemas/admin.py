@@ -23,6 +23,7 @@ class AdminStats(BaseModel):
     complaints_pendientes: int
     postbacks_pending: int
     postback_logs_unverified_7d: int
+    posts_draft: int = 0
 
 
 class AdminUserRead(BaseModel):
