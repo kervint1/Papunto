@@ -15,33 +15,46 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: {
     signIn: "/login",
+    // 失敗も /login に戻し、?error= で理由を出す（既定の /api/auth/error は素っ気ないため）
+    error: "/login",
   },
   callbacks: {
     async jwt({ token, account }) {
-      // 初回サインイン時: GoogleのIDトークンをFastAPIに渡し、自前JWTを受け取る
-      // ここで例外を投げるとNextAuthのセッション発行自体が失敗するため、
-      // バックエンド呼び出しの失敗はログに残すだけで握りつぶす（Heroku dynoのスリープ起床待ち等を考慮）
-      if (account?.id_token) {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 9000);
-          const res = await fetch(`${apiUrl}/api/v1/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id_token: account.id_token }),
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
-          if (res.ok) {
-            const data = await res.json();
-            token.apiToken = data.access_token;
-          } else {
-            console.error("auth/login failed", res.status, await res.text());
-          }
-        } catch (err) {
-          console.error("auth/login request error", err);
-        }
+      // 初回サインイン時: GoogleのIDトークンをFastAPIに渡し、自前JWTを受け取る。
+      // 2回目以降のjwtコールバックでは account が無く、token.apiToken が引き継がれる
+      if (!account?.id_token) return token;
+
+      // ここで失敗を握りつぶすと「ログインは成功したのにAPIを一度も呼べない」
+      // セッションが残り、再ログインするまで永久に直らない。
+      // 例外を投げてサインイン自体を失敗させ、ユーザーにやり直させる
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      let res: Response;
+      try {
+        res = await fetch(`${apiUrl}/api/v1/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id_token: account.id_token }),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        console.error("auth/login request error", err);
+        throw new Error("BackendUnavailable");
+      } finally {
+        clearTimeout(timeout);
       }
+
+      if (!res.ok) {
+        console.error("auth/login failed", res.status, await res.text());
+        throw new Error("BackendRejected");
+      }
+
+      const data = await res.json();
+      if (!data.access_token) {
+        console.error("auth/login returned no access_token");
+        throw new Error("BackendRejected");
+      }
+      token.apiToken = data.access_token;
       return token;
     },
     async session({ session, token }) {

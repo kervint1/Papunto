@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { ArrowRight, Banknote, ListChecks, Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,15 @@ const STEPS = [
 
 export default function LandingPage() {
   const router = useRouter();
-  const goLogin = () => router.push("/login");
+  const { status } = useSession();
+
+  // ログイン済みならLPを見せずにHomeへ送る。
+  // ルートに戻るたびログインを求められるように見えるのを防ぐ
+  useEffect(() => {
+    if (status === "authenticated") router.replace("/home");
+  }, [status, router]);
+
+  const goLogin = () => router.push(status === "authenticated" ? "/home" : "/login");
 
   return (
     <div

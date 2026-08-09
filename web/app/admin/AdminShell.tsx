@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useValidSession } from "@/hooks/useMe";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -98,7 +98,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+  const { session, status } = useValidSession();
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);

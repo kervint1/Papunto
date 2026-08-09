@@ -1,37 +1,73 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 
+// NextAuthが ?error= で返す理由。既定のメッセージは英語で素っ気ないため差し替える
+const ERROR_MESSAGES: Record<string, string> = {
+  BackendUnavailable: "No pudimos conectar con el servidor. Inténtalo de nuevo en un momento.",
+  BackendRejected: "No pudimos verificar tu cuenta de Google. Vuelve a intentarlo.",
+  OAuthCallback: "Hubo un problema al volver de Google. Vuelve a intentarlo.",
+  SessionExpired: "Tu sesión caducó. Vuelve a iniciar sesión.",
+  AccessDenied: "No se pudo acceder con esa cuenta.",
+};
+
+function LoginContent() {
+  const { status } = useSession();
+  const router = useRouter();
+  const params = useSearchParams();
+  const error = params.get("error");
+
+  // すでにログイン済みならログイン画面を見せない
+  useEffect(() => {
+    if (status === "authenticated") router.replace("/home");
+  }, [status, router]);
+
+  return (
+    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-6 pb-10 pt-16">
+      <div className="flex flex-col items-center text-center">
+        <Logo />
+        <h1 className="mt-8">¡Bienvenido! 👋</h1>
+        <p className="mt-2 text-sm text-neutral-500">
+          Inicia sesión para empezar a ganar puntos
+        </p>
+      </div>
+
+      {error && (
+        <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+          {ERROR_MESSAGES[error] ?? "No se pudo iniciar sesión. Vuelve a intentarlo."}
+        </p>
+      )}
+
+      <div className="mt-10 flex flex-col gap-4">
+        <Button
+          variant="outline"
+          className="h-12 w-full gap-3 border-neutral-200"
+          onClick={() => signIn("google", { callbackUrl: "/home" })}
+        >
+          <GoogleIcon />
+          Continuar con Google
+        </Button>
+      </div>
+
+      <p className="mt-auto pt-8 text-center text-xs text-neutral-400">
+        Al continuar, aceptas los Términos de uso y la Política de privacidad.
+      </p>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
     <div className="min-h-screen w-full bg-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-6 pb-10 pt-16">
-        <div className="flex flex-col items-center text-center">
-          <Logo />
-          <h1 className="mt-8">¡Bienvenido! 👋</h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            Inicia sesión para empezar a ganar puntos
-          </p>
-        </div>
-
-        <div className="mt-10 flex flex-col gap-4">
-          <Button
-            variant="outline"
-            className="h-12 w-full gap-3 border-neutral-200"
-            onClick={() => signIn("google", { callbackUrl: "/home" })}
-          >
-            <GoogleIcon />
-            Continuar con Google
-          </Button>
-        </div>
-
-        <p className="mt-auto pt-8 text-center text-xs text-neutral-400">
-          Al continuar, aceptas los Términos de uso y la Política de privacidad.
-        </p>
-      </div>
+      {/* useSearchParams はSuspense境界が要る */}
+      <Suspense fallback={null}>
+        <LoginContent />
+      </Suspense>
     </div>
   );
 }

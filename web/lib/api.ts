@@ -107,6 +107,13 @@ async function apiFetch<T>(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
+    // 自前JWTの期限はNextAuthのセッションより短いため、セッションは生きているのに
+    // APIだけ401になる時間帯が生じる。放置すると「ログイン済みなのに何も出ない」
+    // 画面になるので、セッションを畳んでログインし直させる
+    if (res.status === 401 && typeof window !== "undefined") {
+      const { signOut } = await import("next-auth/react");
+      void signOut({ callbackUrl: "/login" });
+    }
     throw new ApiError(
       body?.error ?? { code: "UNKNOWN", message: "Error de conexión" }
     );

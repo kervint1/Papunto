@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useValidSession } from "@/hooks/useMe";
 import { Menu, X } from "lucide-react";
 
 import { getPostbacks, type Postback } from "@/lib/api";
@@ -71,7 +71,7 @@ function StatRow({ label, value }: { label: string; value: string }) {
 export function HamburgerMenu({ points, name }: { points: number; name?: string | null }) {
   const [open, setOpen] = useState(false);
   const [postbacks, setPostbacks] = useState<Postback[] | null>(null);
-  const { data: session } = useSession();
+  const { session } = useValidSession();
   const pathname = usePathname();
 
   const close = () => setOpen(false);

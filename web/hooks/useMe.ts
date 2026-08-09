@@ -1,14 +1,30 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { getMe, type Me } from "@/lib/api";
 
+/**
+ * ログイン中でも apiToken を持たないセッションが残ることがある。
+ * （サインイン時にバックエンド呼び出しが失敗した古いセッションなど）
+ * その状態だとAPIを一度も呼べず画面が永久に読み込み中になるため、畳んでログインし直させる
+ */
+export function useValidSession() {
+  const { data: session, status } = useSession();
+  const broken = status === "authenticated" && !session?.apiToken;
+
+  useEffect(() => {
+    if (broken) signOut({ callbackUrl: "/login?error=SessionExpired" });
+  }, [broken]);
+
+  return { session, status, token: session?.apiToken, broken };
+}
+
 /** ログイン必須ページ用: 未ログインなら/loginへ、ログイン済みなら/meを取得する */
 export function useMe() {
-  const { data: session, status } = useSession();
+  const { session, status, token } = useValidSession();
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
 
@@ -17,10 +33,10 @@ export function useMe() {
       router.replace("/login");
       return;
     }
-    if (session?.apiToken) {
-      getMe(session.apiToken).then(setMe).catch(console.error);
+    if (token) {
+      getMe(token).then(setMe).catch(console.error);
     }
-  }, [status, session?.apiToken, router]);
+  }, [status, token, router]);
 
-  return { me, token: session?.apiToken, refresh: () => session?.apiToken && getMe(session.apiToken).then(setMe) };
+  return { me, token, refresh: () => token && getMe(token).then(setMe) };
 }

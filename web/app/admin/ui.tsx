@@ -1,13 +1,13 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useValidSession } from "@/hooks/useMe";
 import { Badge } from "@/components/ui/badge";
 import type { PageMeta } from "@/lib/api";
 
 /** 管理APIを叩くためのトークン。AdminShellが認証済みを保証している */
 export function useAdminToken() {
-  const { data: session } = useSession();
-  return session?.apiToken;
+  const { token } = useValidSession();
+  return token;
 }
 
 export function PageTitle({ title, sub }: { title: string; sub?: string }) {
