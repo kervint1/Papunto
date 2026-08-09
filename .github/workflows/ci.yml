@@ -1,0 +1,58 @@
+name: CI
+
+# mainへのpushとPRで走らせる。Herokuの自動デプロイは main への push で動くため、
+# ここが通ったものだけが本番に出るようにする（Deploy設定の
+# "Wait for GitHub checks to pass before deploy" を有効にすること）
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  server:
+    name: server (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: server/.python-version
+          cache: pip
+          cache-dependency-path: server/requirements-dev.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      # テストはSQLiteのインメモリを使うためDBサービスは不要
+      - run: python -m pytest -q
+
+  web:
+    name: web (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      - run: npx tsc --noEmit
+
+      # ビルドだけを検証する。実際の値は使わないのでダミーで埋める
+      - run: npx next build
+        env:
+          NEXTAUTH_SECRET: ci-dummy
+          GOOGLE_CLIENT_ID: ci-dummy
+          GOOGLE_CLIENT_SECRET: ci-dummy
+          NEXT_PUBLIC_SITE_URL: https://www.papunto.pe
