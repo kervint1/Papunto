@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { marked } from "marked";
 
 import {
   deleteAdminPost,
@@ -17,40 +16,7 @@ import {
   type UploadConfig,
 } from "@/lib/api";
 import { Card, PageTitle, StatusBadge, fmtDate, useAdminToken } from "../../ui";
-
-/** 本文プレビュー。
- *
- * MarkdownをHTMLにしてsandbox付きiframeで描画する。srcDocに直接入れず
- * sandboxを空にすることでスクリプトが動かないため、AIが生成した本文を
- * 管理者が開いても管理画面のセッションに触れられない。
- */
-function Preview({ markdown }: { markdown: string }) {
-  const html = useMemo(() => {
-    const body = marked.parse(markdown ?? "", { async: false }) as string;
-    return `<!doctype html><meta charset="utf-8">
-      <style>
-        body{font-family:system-ui,sans-serif;line-height:1.9;color:#3a3d44;padding:16px;margin:0}
-        h1,h2,h3{color:#1f2126;line-height:1.35}
-        h2{border-bottom:1px solid #e5e5e5;padding-bottom:6px;margin-top:2em}
-        a{color:#0d80c4}
-        table{border-collapse:collapse;width:100%}
-        th,td{border:1px solid #e5e5e5;padding:8px;text-align:left}
-        th{background:#f6f7f9}
-        blockquote{border-left:4px solid #e5e5e5;margin:0;padding-left:12px;color:#71747c}
-        img{max-width:100%}
-        code{background:#f6f7f9;padding:2px 4px;border-radius:4px}
-      </style>${body}`;
-  }, [markdown]);
-
-  return (
-    <iframe
-      title="Vista previa"
-      sandbox=""
-      srcDoc={html}
-      className="h-[32rem] w-full rounded-lg border border-neutral-200 bg-white"
-    />
-  );
-}
+import { BodyEditor } from "./editor";
 
 function Field({
   label,
@@ -164,77 +130,6 @@ function CoverImage({
   );
 }
 
-/**
- * 本文への画像挿入。GitHubのエディタと同じく、ドラッグ&ドロップと貼り付けに対応する。
- *
- * アップロード中は仮テキストを入れておき、完了したら本物のURLに差し替える。
- * 失敗した場合は仮テキストごと取り除く（壊れた記法を残さない）。
- *
- * 本文から消された画像は、記事を保存した時点でサーバー側が削除する
- */
-function useBodyImageDrop(
-  token: string | undefined,
-  bodyRef: React.RefObject<HTMLTextAreaElement>,
-  setBody: (next: string) => void,
-  onError: (message: string) => void
-) {
-  const [uploading, setUploading] = useState(0);
-
-  const insert = useCallback(
-    async (files: File[]) => {
-      const images = files.filter((f) => f.type.startsWith("image/"));
-      if (images.length === 0 || !token) return;
-
-      const el = bodyRef.current;
-      if (!el) return;
-
-      for (const file of images) {
-        const marker = `![subiendo ${file.name}...]()`;
-        // 挿入位置は「そのときのカーソル位置」。複数枚なら順に後ろへ積む
-        const at = el.selectionStart ?? el.value.length;
-        const current = el.value;
-        const withMarker = `${current.slice(0, at)}\n${marker}\n${current.slice(at)}`;
-        setBody(withMarker);
-        setUploading((n) => n + 1);
-
-        try {
-          const { url } = await uploadImage(token, file);
-          const alt = file.name.replace(/\.[^.]+$/, "");
-          setBody(withMarker.replace(marker, `![${alt}](${url})`));
-        } catch (e) {
-          setBody(withMarker.replace(`\n${marker}\n`, ""));
-          onError(e instanceof Error ? e.message : "Error al subir la imagen");
-        } finally {
-          setUploading((n) => n - 1);
-        }
-      }
-    },
-    [token, bodyRef, setBody, onError]
-  );
-
-  return {
-    uploading,
-    onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      const files = Array.from(e.clipboardData.files);
-      if (files.some((f) => f.type.startsWith("image/"))) {
-        // 画像が含まれるときだけ既定の貼り付けを止める（テキストの貼り付けは邪魔しない）
-        e.preventDefault();
-        void insert(files);
-      }
-    },
-    onDrop: (e: React.DragEvent<HTMLTextAreaElement>) => {
-      const files = Array.from(e.dataTransfer.files);
-      if (files.some((f) => f.type.startsWith("image/"))) {
-        e.preventDefault();
-        void insert(files);
-      }
-    },
-    onDragOver: (e: React.DragEvent<HTMLTextAreaElement>) => {
-      if (Array.from(e.dataTransfer.items).some((i) => i.kind === "file")) e.preventDefault();
-    },
-  };
-}
-
 export default function PostEditor() {
   const token = useAdminToken();
   const router = useRouter();
@@ -248,19 +143,7 @@ export default function PostEditor() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [tab, setTab] = useState<"edit" | "preview">("edit");
   const loadedId = useRef<string | null>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-
-  const imageDrop = useBodyImageDrop(
-    token,
-    bodyRef,
-    (next) => {
-      setForm((f) => ({ ...f, body: next }));
-      setDirty(true);
-    },
-    setError
-  );
 
   useEffect(() => {
     if (!token || !params?.id || loadedId.current === params.id) return;
@@ -407,45 +290,15 @@ export default function PostEditor() {
         {/* 本文 */}
         <div className="lg:col-span-2">
           <Card className="p-4">
-            <div className="mb-3 flex gap-2">
-              {(["edit", "preview"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTab(t)}
-                  className={`rounded-full px-3.5 py-1.5 text-sm ${
-                    tab === t
-                      ? "bg-neutral-900 text-white"
-                      : "border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                  }`}
-                >
-                  {t === "edit" ? "Markdown" : "Vista previa"}
-                </button>
-              ))}
-            </div>
-
-            {tab === "edit" ? (
-              <>
-                <textarea
-                  ref={bodyRef}
-                  value={form.body}
-                  onChange={(e) => set("body")(e.target.value)}
-                  onPaste={imageDrop.onPaste}
-                  onDrop={imageDrop.onDrop}
-                  onDragOver={imageDrop.onDragOver}
-                  spellCheck={false}
-                  placeholder={"## Subtítulo\n\nEscribe aquí en Markdown."}
-                  className="h-[32rem] w-full resize-y rounded-lg border border-neutral-200 p-3 font-mono text-sm leading-relaxed"
-                />
-                <p className="mt-2 text-xs text-neutral-400">
-                  {imageDrop.uploading > 0
-                    ? `Subiendo ${imageDrop.uploading} imagen(es)...`
-                    : "Arrastra o pega una imagen para insertarla en el texto."}
-                </p>
-              </>
-            ) : (
-              <Preview markdown={form.body} />
-            )}
+            <BodyEditor
+              token={token}
+              value={form.body}
+              onChange={(next) => {
+                setForm((f) => ({ ...f, body: next }));
+                setDirty(true);
+              }}
+              onError={setError}
+            />
           </Card>
         </div>
 
