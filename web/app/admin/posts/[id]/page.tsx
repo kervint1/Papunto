@@ -7,10 +7,14 @@ import { marked } from "marked";
 
 import {
   deleteAdminPost,
+  deleteImage,
   getAdminPost,
+  getUploadConfig,
   setPostPublished,
   updateAdminPost,
+  uploadImage,
   type AdminPost,
+  type UploadConfig,
 } from "@/lib/api";
 import { Card, PageTitle, StatusBadge, fmtDate, useAdminToken } from "../../ui";
 
@@ -69,6 +73,97 @@ function Field({
 const input =
   "mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-900";
 
+/**
+ * アイキャッチ画像。SNSで共有したときのカード画像にもなるため、記事ごとに1枚持たせる。
+ * 保管先はAppwrite Storageで、DBにはURLだけを入れる
+ */
+function CoverImage({
+  token,
+  value,
+  config,
+  onChange,
+}: {
+  token: string | undefined;
+  value: string | null;
+  config: UploadConfig | null;
+  onChange: (url: string | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pick = async (file: File | undefined) => {
+    if (!file || !token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await uploadImage(token, file);
+      // 差し替えた場合は古い画像をAppwriteから消す（失敗しても続行する）
+      if (value) void deleteImage(token, value);
+      onChange(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al subir la imagen");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const maxMb = config ? Math.round(config.max_bytes / (1024 * 1024)) : 5;
+
+  return (
+    <div>
+      <span className="text-xs text-neutral-500">Imagen de portada</span>
+
+      {value ? (
+        <div className="mt-1 overflow-hidden rounded-lg border border-neutral-200">
+          {/* Appwriteの配信URLなのでnext/imageは使わず素のimgにする */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="" className="aspect-[16/9] w-full object-cover" />
+        </div>
+      ) : (
+        <div className="mt-1 flex aspect-[16/9] items-center justify-center rounded-lg border border-dashed border-neutral-300 text-xs text-neutral-400">
+          Sin imagen
+        </div>
+      )}
+
+      {config && !config.enabled ? (
+        <p className="mt-2 text-xs text-amber-700">
+          El almacenamiento de imágenes no está configurado (falta Appwrite).
+        </p>
+      ) : (
+        <div className="mt-2 flex items-center gap-2">
+          <label className="cursor-pointer rounded-lg border border-neutral-200 px-3 py-1.5 text-xs hover:bg-neutral-50">
+            {busy ? "Subiendo..." : value ? "Cambiar" : "Subir imagen"}
+            <input
+              type="file"
+              accept={config?.allowed_types.join(",") ?? "image/*"}
+              disabled={busy}
+              onChange={(e) => pick(e.target.files?.[0])}
+              className="hidden"
+            />
+          </label>
+          {value && (
+            <button
+              type="button"
+              onClick={() => {
+                if (token) void deleteImage(token, value);
+                onChange(null);
+              }}
+              className="text-xs text-red-600 hover:underline"
+            >
+              Quitar
+            </button>
+          )}
+        </div>
+      )}
+
+      <span className="mt-1 block text-xs text-neutral-400">
+        Se usa en la lista del blog y al compartir en redes. Máx. {maxMb} MB.
+      </span>
+      {error && <span className="mt-1 block text-xs text-red-600">{error}</span>}
+    </div>
+  );
+}
+
 export default function PostEditor() {
   const token = useAdminToken();
   const router = useRouter();
@@ -76,6 +171,8 @@ export default function PostEditor() {
 
   const [post, setPost] = useState<AdminPost | null>(null);
   const [form, setForm] = useState({ title: "", description: "", body: "", tags: "", slug: "" });
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploadCfg, setUploadCfg] = useState<UploadConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +186,7 @@ export default function PostEditor() {
     getAdminPost(token, params.id)
       .then((p) => {
         setPost(p);
+        setImageUrl(p.image_url);
         setForm({
           title: p.title,
           description: p.description,
@@ -99,6 +197,11 @@ export default function PostEditor() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Error"));
   }, [token, params?.id]);
+
+  useEffect(() => {
+    if (!token) return;
+    getUploadConfig(token).then(setUploadCfg).catch(() => setUploadCfg(null));
+  }, [token]);
 
   const set = (key: keyof typeof form) => (v: string) => {
     setForm((f) => ({ ...f, [key]: v }));
@@ -115,6 +218,7 @@ export default function PostEditor() {
         description: form.description,
         body: form.body,
         tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        image_url: imageUrl,
         // 公開後はURLを変えられないので送らない
         ...(post.status === "published" ? {} : { slug: form.slug }),
       });
@@ -127,7 +231,7 @@ export default function PostEditor() {
     } finally {
       setSaving(false);
     }
-  }, [token, post, form]);
+  }, [token, post, form, imageUrl]);
 
   // 離脱時に未保存の変更を警告する（自動保存は入れていない）
   useEffect(() => {
@@ -293,6 +397,16 @@ export default function PostEditor() {
             <Field label="Etiquetas" hint="Separadas por comas. Definen la categoría en el blog.">
               <input value={form.tags} onChange={(e) => set("tags")(e.target.value)} className={input} />
             </Field>
+
+            <CoverImage
+              token={token}
+              value={imageUrl}
+              config={uploadCfg}
+              onChange={(url) => {
+                setImageUrl(url);
+                setDirty(true);
+              }}
+            />
           </Card>
 
           {!published && (

@@ -60,3 +60,20 @@ RELOADLY_API_BASE = (
     "https://topups-sandbox.reloadly.com" if RELOADLY_SANDBOX
     else "https://topups.reloadly.com"
 )
+
+# Appwrite Storage: 記事のアイキャッチ画像の保管先
+# （GitHub Student PackのPro相当を利用。技術スタックの当初想定どおり）
+APPWRITE_ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://cloud.appwrite.io/v1")
+APPWRITE_PROJECT_ID = os.getenv("APPWRITE_PROJECT_ID", "")
+APPWRITE_API_KEY = os.getenv("APPWRITE_API_KEY", "")
+APPWRITE_BUCKET_ID = os.getenv("APPWRITE_BUCKET_ID", "papunto-media")
+
+# 受け付ける画像の上限と種類。管理者しか触らない経路だが、
+# 画像以外を投げられる口は塞いでおく
+UPLOAD_MAX_BYTES = int(os.getenv("UPLOAD_MAX_BYTES", str(5 * 1024 * 1024)))
+UPLOAD_ALLOWED_TYPES = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}

@@ -500,3 +500,44 @@ export async function deleteAdminPost(token: string, id: string): Promise<void> 
     }
   });
 }
+
+// ---------------------------------------------------------------- 画像アップロード
+
+export interface UploadConfig {
+  enabled: boolean;
+  max_bytes: number;
+  allowed_types: string[];
+}
+
+export function getUploadConfig(token: string): Promise<UploadConfig> {
+  return apiFetch<UploadConfig>("/api/v1/admin/uploads/config", token);
+}
+
+/** multipartで送るため Content-Type はブラウザに任せる（apiFetchは使わない） */
+export async function uploadImage(
+  token: string,
+  file: File
+): Promise<{ url: string; file_id: string }> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/v1/admin/uploads`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(body?.error ?? { code: "UNKNOWN", message: "Error al subir la imagen" });
+  }
+  return res.json();
+}
+
+/** 差し替え時に古い画像を消す。失敗しても記事の保存は妨げない */
+export async function deleteImage(token: string, url: string): Promise<void> {
+  await fetch(`${API_URL}/api/v1/admin/uploads/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ url }),
+  }).catch(() => undefined);
+}
