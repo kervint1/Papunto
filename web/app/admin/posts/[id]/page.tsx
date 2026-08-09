@@ -286,9 +286,10 @@ export default function PostEditor() {
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* 本文が左右分割になるので、メタ情報の列は狭めて本文に幅を回す */}
+      <div className="grid gap-4 xl:grid-cols-4">
         {/* 本文 */}
-        <div className="lg:col-span-2">
+        <div className="xl:col-span-3">
           <Card className="p-4">
             <BodyEditor
               token={token}

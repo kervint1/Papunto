@@ -14,4 +14,4 @@ export const LOCALE = "es_PE";
 export const LANG = "es-PE";
 
 export const SITE_DESCRIPTION =
-  "Gana puntos completando tareas sencillas como encuestas y registros, y cámbialos por dinero en tu billetera Yape. Gratis y solo para Perú.";
+  "Gana puntos completando tareas sencillas como encuestas y registros, y cámbialos por dinero en tu billetera Yape. Gratis y solo para Perú. En preparación: pronto abriremos.";

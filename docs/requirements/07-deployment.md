@@ -1,84 +1,140 @@
 # デプロイ手順
 
-本番構成: web（Next.js）→ **Vercel** ／ server（FastAPI）+ DB → **Heroku**（GitHub Educationクレジット）。本番ではDockerを使わず、各プラットフォームの標準ビルドに任せる。
+本番構成:
 
-## 事前準備
+| | デプロイ先 | リポジトリ |
+| --- | --- | --- |
+| web（Next.js） | **Vercel**（Root Directory = `web`） | `papunto` |
+| server（FastAPI）+ DB | **Heroku**（GitHub Educationクレジット） | `papunto` の `server/` |
+| メディア pandia（Next.js） | **Vercel** | `papunto-pandia`（別リポジトリ） |
+| 記事の画像 | **Appwrite Storage** | — |
 
-- [ ] GitHub EducationでHerokuの学生特典を有効化（Herokuアカウントと紐付け）
-- [ ] Heroku CLIをインストール（`brew install heroku/brew/heroku`）して `heroku login`
-- [ ] Vercelアカウント（GitHubログイン）
-- [ ] Google OAuthクライアント作成済み（[05-api-design.md](./05-api-design.md) の環境変数参照）
+ドメインは `papunto.pe` を **www に寄せている**（apex → www へ308リダイレクト）。メディアは本体の `/blog` 配下としてリライトで配信し、ドメイン評価を統合している。
 
-## 1. Heroku（server + DB）
+## デプロイの流れ
 
-モノレポのため、`server/` ディレクトリだけを `git subtree` でHerokuにpushする方式を使う。
+**`main` へのpushで自動デプロイされる。** Heroku・Vercelとも GitHub 連携済みで、`git subtree push` は不要。
 
-```bash
-# アプリ作成（リージョンはus。名前は例）
-heroku create papunto-api
-
-# Postgresアドオン追加（Essential-0。1万行上限に注意、増えたらessential-1へ）
-heroku addons:create heroku-postgresql:essential-0 -a papunto-api
-# → DATABASE_URL が自動で設定される
-
-# 環境変数
-heroku config:set -a papunto-api \
-  SECRET_KEY=$(openssl rand -hex 32) \
-  ACCESS_TOKEN_EXPIRE_MINUTES=10080 \
-  GOOGLE_CLIENT_ID=<GoogleのクライアントID> \
-  POINTS_PER_SOL=100 \
-  MIN_WITHDRAWAL_POINTS=500 \
-  FRONTEND_ORIGIN=https://<vercelのドメイン> \
-  RELOADLY_CLIENT_ID=<Reloadlyのクライアント ID> \
-  RELOADLY_CLIENT_SECRET=<Reloadlyのクライアントシークレット> \
-  RELOADLY_SANDBOX=false
-# MONLIX_POSTBACK_SECRET はMonlix契約後に設定
-
-# デプロイ（リポジトリルートから。server/ だけをpush）
-git subtree push --prefix server heroku main
-
-# 確認
-curl https://papunto-api-<hash>.herokuapp.com/health
+```
+main へ push
+  ├→ GitHub Actions（CI: pytest / 型チェック / ビルド）
+  ├→ Heroku（server）      … release フェーズで alembic upgrade head
+  ├→ Vercel（web）
+  └→ Vercel（pandia）※別リポジトリ
 ```
 
-- `server/Procfile` が `uvicorn main:app --port $PORT` を起動する
-- Pythonバージョンは `server/.python-version`（3.12）で指定
-- マイグレーションはProcfileの `release: alembic upgrade head` によりデプロイごとに自動適用される
+Herokuの Deploy 設定にある **「Wait for GitHub checks to pass before deploy」を有効にする**と、CIが通ったものだけが本番に出る。
 
-### 2回目以降のデプロイ
+### モノレポの扱い
 
-```bash
-git subtree push --prefix server heroku main
+Herokuは buildpack を2段で使い、`server/` だけを切り出している。
+
+```
+1. https://github.com/lstoll/heroku-buildpack-monorepo   ← APP_BASE=server
+2. heroku/python
 ```
 
-コンフリクト等でpushが拒否された場合: `git push heroku $(git subtree split --prefix server main):main --force`
+`APP_BASE` はこのbuildpack用の設定なので消さないこと。
 
-## 2. Vercel（web）
+## 環境変数
 
-1. https://vercel.com/new でGitHubの `kervint1/papunto` をインポート
-2. **Root Directory を `web` に設定**（モノレポのため必須）
-3. Framework Preset: Next.js（自動検出）
-4. 環境変数を設定:
+### Heroku（server）
+
+| 変数 | 値 | 未設定だとどうなるか |
+| --- | --- | --- |
+| `DATABASE_URL` | アドオンが自動設定 | — |
+| `SECRET_KEY` | `openssl rand -hex 32` | 既定の開発用鍵が使われる（危険） |
+| `GOOGLE_CLIENT_ID` | Google Cloud Consoleの値 | ログインの検証に失敗する |
+| `FRONTEND_ORIGIN` | `https://www.papunto.pe` | **CORSで全APIがブロックされる** |
+| `APP_BASE` | `server` | ビルドが失敗する |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` | 既定7日 |
+| `POINTS_PER_SOL` / `MIN_WITHDRAWAL_POINTS` | `100` / `500` | 既定値 |
+| `RELOADLY_CLIENT_ID` / `RELOADLY_CLIENT_SECRET` | Reloadlyの値 | **携帯チャージが502で失敗する** |
+| `RELOADLY_SANDBOX` | `false` | サンドボックスに繋がる |
+| `CPALEAD_MOCK` | `false` | **架空の案件が本番に出る**（既定true） |
+| `PUBLIC_BASE_URL` | HerokuアプリのURL | CPALEAD_MOCK=false なら未使用 |
+| `APPWRITE_PROJECT_ID` / `APPWRITE_API_KEY` / `APPWRITE_BUCKET_ID` | Appwriteの値 | **画像がdyno再起動で消える**（下記） |
+| `MONLIX_POSTBACK_SECRET` | Monlix契約後 | 署名検証をスキップし誰でも付与できる |
+
+### Vercel（web / Root Directory = `web`）
 
 | 変数 | 値 |
 | --- | --- |
-| `NEXTAUTH_URL` | `https://<vercelのドメイン>` |
-| `NEXTAUTH_SECRET` | `openssl rand -base64 32` で生成（開発用とは別の値） |
+| `NEXTAUTH_URL` | `https://www.papunto.pe`（**Production のみ**。Previewに付けるとプレビューの認証が本番へ飛ぶ） |
+| `NEXTAUTH_SECRET` | `openssl rand -base64 32` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud Consoleの値 |
-| `NEXT_PUBLIC_API_URL` | HerokuアプリのURL（例: `https://papunto-api-xxx.herokuapp.com`） |
+| `NEXT_PUBLIC_API_URL` | HerokuアプリのURL |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.papunto.pe`（**未設定だとcanonical/sitemapがlocalhostを指す**） |
+| `MEDIA_URL` | pandiaのVercel URL（未設定だと `/blog` が404） |
 
-5. Deploy実行
+> `NEXT_PUBLIC_` の変数はクライアントのJSに埋め込まれ誰でも見られる。Sensitive を付けても秘匿されないので、そこに秘密を入れない。
 
-## 3. デプロイ後の接続設定
+### Vercel（pandia）
 
-- [ ] Google Cloud Console → OAuthクライアント → 承認済みリダイレクトURIに `https://<vercelのドメイン>/api/auth/callback/google` を追加
-- [ ] Herokuの `FRONTEND_ORIGIN` をVercelの本番ドメインに更新（CORS用）
-- [ ] 動作確認: 本番URLでGoogleログイン → /home表示 → /walletでポイント0表示
-- [ ] 管理者運用: TablePlus等で `heroku config:get DATABASE_URL -a papunto-api` の接続文字列を使ってHeroku Postgresに接続
+| 変数 | 値 |
+| --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.papunto.pe`（**本体のドメイン**。ここにpandia自身のVercel URLを入れるとcanonicalが分散する） |
+| `API_URL` | HerokuアプリのURL（未設定だと記事が0件のまま） |
 
-## 4. Monlix接続時（契約後）
+> pandiaのプロジェクトに `papunto.pe` を**追加してはいけない**。リライトで配信されるため、ドメインは本体プロジェクトにだけ紐付ける。
 
-- [ ] Postback URL: `https://papunto-api-xxx.herokuapp.com/postback/monlix?userid={subid}&transaction_id={tid}&amount={amount}&status={status}&hash={hash}`（マクロ名はMonlix仕様に合わせる）
-- [ ] `heroku config:set MONLIX_POSTBACK_SECRET=...`
-- [ ] `server/routers/postback.py` の `verify_postback_hash` をMonlixの署名仕様に合わせて実装
-- [ ] `NEXT_PUBLIC_MONLIX_IFRAME_URL` をVercelに設定
+## Appwrite Storage（記事の画像）
+
+未設定でも動くが、**サーバーのローカルディスクに保存される**。Herokuのファイルシステムは揮発性で、**デプロイや再起動のたびに画像が消える**ため本番では必ず設定する。
+
+1. Appwriteコンソールでプロジェクトを作成 → **Project ID** を控える
+2. Storage → バケット作成（`papunto-media`）
+   - **Permissions で Any に Read を付ける**（付けないと画像が表示されない）
+3. API Key を作成し、Scopes に **`files.read` / `files.write`** を付ける
+4. Herokuに3つを設定
+
+どちらで動いているかは管理画面の `/api/v1/admin/uploads/config` の `backend` で確認できる（`appwrite` / `local`）。
+
+## Google OAuth
+
+Google Cloud Console → OAuthクライアントに追加する。
+
+- 承認済みリダイレクトURI: `https://www.papunto.pe/api/auth/callback/google`
+- 承認済みJavaScript生成元: `https://www.papunto.pe`
+
+**未設定だと `redirect_uri_mismatch` でログインできない。**
+
+## 初回のみ必要な作業
+
+**管理者フラグ** — 管理画面は `users.is_admin` で入室を判定する。画面からは昇格させられないので、対象のユーザーが一度ログインした後にDBを直接更新する。
+
+```bash
+heroku pg:psql -a papunto-api \
+  -c "UPDATE users SET is_admin = true WHERE email = '<メールアドレス>';"
+```
+
+`psql` が無ければ Heroku ダッシュボードの **More → Run console** で `python` を開き、`models.User` を更新してもよい。
+
+## 反映確認
+
+```bash
+curl -s https://papunto-api-xxx.herokuapp.com/health
+curl -s https://www.papunto.pe/robots.txt
+curl -s https://www.papunto.pe/ | grep -o 'rel="canonical"[^>]*'
+curl -s -o /dev/null -w "%{http_code}\n" https://www.papunto.pe/blog
+```
+
+`canonical` が `https://www.papunto.pe` を指し、`/blog` が200なら繋がっている。
+
+## ローカル開発
+
+```bash
+docker compose up          # web:3001 / server:8000 / db:5432
+```
+
+メディアは別リポジトリなので個別に起動する。
+
+```bash
+cd ../papunto-pandia && API_URL=http://localhost:8000 npm run dev   # :3002/blog
+```
+
+> ⚠️ **devサーバーを動かしたまま `next build` を実行しないこと。** `.next` が本番ビルドの成果物で上書きされ、アセットが404になって画面が壊れる。ビルドの検証はCIに任せる。復旧は `.next` を削除してdevサーバーを再起動する。
+
+> ⚠️ **本番DBをローカルから使わないこと。** 実ユーザーのポイント残高・換金申請・個人情報に直接影響し、マイグレーションのミスが本番を壊す。
+
+> 依存を追加したら、コンテナ内にも入れる（`docker compose exec web npm install` / `docker compose exec server pip install -r requirements-dev.txt`）。`node_modules` が匿名ボリュームのため、ホスト側の `npm install` だけでは反映されない。

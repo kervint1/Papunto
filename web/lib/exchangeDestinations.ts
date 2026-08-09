@@ -22,10 +22,13 @@ export const DESTINATIONS: ExchangeDestination[] = [
   {
     id: "recarga",
     name: "Recarga celular",
-    desc: "Recarga de saldo Claro, Movistar, Entel o Bitel",
+    // Reloadlyの本番クレジットを用意して残高を入れるまでは選ばせない。
+    // サンドボックスのまま公開すると「ポイントは引かれたのにチャージが届かない」
+    // 状態になるため、エラーで止まるより悪い
+    desc: "Próximamente",
     icon: Smartphone,
-    available: true,
-    processingTime: "Instantáneo",
+    available: false,
+    processingTime: "",
   },
   {
     id: "paypal",

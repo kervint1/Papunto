@@ -94,7 +94,9 @@ export function BodyEditor({
         value={value}
         onChange={(v) => onChange(v ?? "")}
         height={520}
-        preview="edit"
+        // 左右分割で書きながら確認できる状態を既定にする。
+        // ツールバー右端のアイコンで「編集のみ / 分割 / プレビューのみ」を切り替えられる
+        preview="live"
         textareaProps={{
           placeholder: "## Subtítulo\n\nEscribe aquí en Markdown.",
           spellCheck: false,

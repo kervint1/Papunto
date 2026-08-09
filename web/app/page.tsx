@@ -39,8 +39,13 @@ export default function LandingPage() {
           <Logo />
           <div className="mt-10 grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
             <div>
-              <p className="inline-block rounded-full bg-white/40 px-3 py-1 text-sm text-neutral-800">
-                🇵🇪 Solo en Perú · Empieza gratis
+              {/* まだオファーウォールと契約しておらず、実際にはポイントを貯められない。
+                  «Empieza gratis» だけ出すと誤解を招くので、準備中であることを明示する */}
+              <p className="inline-block rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
+                🚧 En preparación · Aún no hemos lanzado
+              </p>
+              <p className="mt-2 inline-block rounded-full bg-white/40 px-3 py-1 text-sm text-neutral-800">
+                🇵🇪 Solo en Perú
               </p>
               <h1
                 className="mt-4 text-neutral-900"
@@ -51,25 +56,34 @@ export default function LandingPage() {
                 recibe <span className="text-white">puntos por Yape</span>
               </h1>
               <p className="mt-3 max-w-xl text-neutral-800">
-                Gana puntos al instante completando tareas sencillas como
-                encuestas o registros. Cámbialos por dinero directo en tu
-                billetera Yape.
+                Gana puntos completando tareas sencillas como encuestas o
+                registros, y cámbialos por dinero en tu billetera Yape.
+              </p>
+              <p className="mt-3 max-w-xl rounded-2xl bg-white/50 px-4 py-3 text-sm text-neutral-800">
+                <strong>Todavía estamos preparando el lanzamiento.</strong> Las
+                tareas para ganar puntos aún no están disponibles. Mientras
+                tanto, puedes leer nuestras guías para ahorrar y ganar dinero en
+                Perú.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                {/* ブログは公開済みで読める。準備中の間はそちらへ送る */}
                 <Button
+                  asChild
                   size="lg"
                   className="h-12 bg-neutral-900 px-8 text-white hover:bg-neutral-800"
                 >
-                  Empezar gratis
-                  <ArrowRight className="ml-1 h-4 w-4" />
+                  <a href="/blog" onClick={(e) => e.stopPropagation()}>
+                    Leer las guías
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </a>
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   className="h-12 border-neutral-900 bg-transparent px-8 text-neutral-900 hover:bg-white/40"
                 >
-                  Cobrar con Yape
+                  Crear mi cuenta
                 </Button>
               </div>
             </div>
@@ -111,12 +125,21 @@ export default function LandingPage() {
         </div>
 
         <div className="mt-10 rounded-2xl bg-neutral-900 p-8 text-center text-white">
-          <p className="text-sm text-neutral-300">Empieza ahora y</p>
+          <p className="text-sm text-neutral-300">Así funcionará Papunto</p>
           <p style={{ fontSize: "1.5rem" }} className="mt-1">
-            gana puntos al toque 💸
+            cuando lancemos 💸
           </p>
-          <Button className="mx-auto mt-4 h-11 w-full max-w-sm bg-yellow-400 text-neutral-900 hover:bg-yellow-300">
-            Empezar gratis
+          <p className="mx-auto mt-3 max-w-md text-sm text-neutral-300">
+            Aún no puedes ganar puntos. Estamos preparando el catálogo de tareas
+            para Perú.
+          </p>
+          <Button
+            asChild
+            className="mx-auto mt-4 h-11 w-full max-w-sm bg-yellow-400 text-neutral-900 hover:bg-yellow-300"
+          >
+            <a href="/blog" onClick={(e) => e.stopPropagation()}>
+              Leer las guías mientras tanto
+            </a>
           </Button>
         </div>
       </div>
