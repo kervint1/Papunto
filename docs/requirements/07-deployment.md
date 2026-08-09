@@ -53,6 +53,7 @@ Herokuは buildpack を2段で使い、`server/` だけを切り出している�
 | `RELOADLY_SANDBOX` | `false` | サンドボックスに繋がる |
 | `CPALEAD_MOCK` | `false` | **架空の案件が本番に出る**（既定true） |
 | `PUBLIC_BASE_URL` | HerokuアプリのURL | CPALEAD_MOCK=false なら未使用 |
+| `APPWRITE_ENDPOINT` | `https://nyc.cloud.appwrite.io/v1` | リージョン不一致で全操作が失敗する |
 | `APPWRITE_PROJECT_ID` / `APPWRITE_API_KEY` / `APPWRITE_BUCKET_ID` | Appwriteの値 | **画像がdyno再起動で消える**（下記） |
 | `MONLIX_POSTBACK_SECRET` | Monlix契約後 | 署名検証をスキップし誰でも付与できる |
 
@@ -83,8 +84,15 @@ Herokuは buildpack を2段で使い、`server/` だけを切り出している�
 未設定でも動くが、**サーバーのローカルディスクに保存される**。Herokuのファイルシステムは揮発性で、**デプロイや再起動のたびに画像が消える**ため本番では必ず設定する。
 
 1. Appwriteコンソールでプロジェクトを作成 → **Project ID** を控える
-2. Storage → バケット作成（`papunto-media`）
+   - リージョンは **NYC** を推奨（ペルーのユーザーにもHerokuのUSリージョンにも近い）
+   - **リージョンごとにエンドポイントが違う。** `APPWRITE_ENDPOINT` を必ず設定する
+     （NYC: `https://nyc.cloud.appwrite.io/v1`。未設定だと既定のFRA向けを見にいき
+     `Project is not accessible in this region` で失敗する）
+2. Storage → バケット作成
+   - **`APPWRITE_BUCKET_ID` には「Bucket ID」を入れる**（表示名ではない。自動生成だと
+     ランダムな文字列になる。間違えると `bucket ... could not be found`）
    - **Permissions で Any に Read を付ける**（付けないと画像が表示されない）
+   - File security は**オフ**（オンにするとファイル個別の権限が優先され、全ファイルが読めなくなる）
 3. API Key を作成し、Scopes に **`files.read` / `files.write`** を付ける
 4. Herokuに3つを設定
 
