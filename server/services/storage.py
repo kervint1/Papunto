@@ -132,7 +132,7 @@ def upload(content: bytes, content_type: Optional[str]) -> dict:
     if backend() == APPWRITE:
         from services.appwrite_storage import AppwriteStorageService
 
-        return AppwriteStorageService.upload(content, extension)
+        return AppwriteStorageService.upload(content, extension, content_type)
     return _local_upload(content, extension)
 
 

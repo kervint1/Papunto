@@ -130,3 +130,19 @@ def test_local_url_roundtrip(monkeypatch):
 
 def test_file_id_from_unrelated_url():
     assert storage.file_id_from_url("https://example.com/a.png") is None
+
+
+# ---------------------------------------------------------------- SDKの戻り値
+
+def test_normalizes_sdk_response_objects():
+    """appwrite SDK 6以降は dict ではなく Pydantic モデルを返す。
+    バージョン差を吸収できていないと 'FileList' object has no attribute 'get' で落ちる
+    """
+    from services.appwrite_storage import _as_dict
+
+    class FakeModel:
+        def model_dump(self, by_alias=False):
+            return {"$id": "abc"} if by_alias else {"id": "abc"}
+
+    assert _as_dict({"$id": "x"}) == {"$id": "x"}
+    assert _as_dict(FakeModel()) == {"$id": "abc"}

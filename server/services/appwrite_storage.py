@@ -13,6 +13,24 @@ from services.storage import StorageError
 logger = logging.getLogger("appwrite")
 
 
+def _as_dict(value) -> dict:
+    """SDKの戻り値をdictに揃える。
+
+    appwrite SDK 6以降は dict ではなく Pydantic モデル（File / FileList）を返す。
+    バージョンによって形が変わるので、ここで吸収する
+    """
+    if isinstance(value, dict):
+        return value
+    for method in ("model_dump", "dict"):
+        fn = getattr(value, method, None)
+        if callable(fn):
+            try:
+                return fn(by_alias=True)
+            except TypeError:
+                return fn()
+    return getattr(value, "__dict__", {}) or {}
+
+
 class AppwriteStorageService:
     _storage = None
 
@@ -40,7 +58,7 @@ class AppwriteStorageService:
         return cls._storage
 
     @classmethod
-    def upload(cls, content: bytes, extension: str) -> dict:
+    def upload(cls, content: bytes, extension: str, content_type: str | None = None) -> dict:
         storage = cls._client()
 
         from appwrite.id import ID
@@ -53,13 +71,13 @@ class AppwriteStorageService:
                 file_id=file_id,
                 # ファイル名にfile_idを含める。URLとAppwriteコンソール上の
                 # 名前を突き合わせられるようにするため
-                file=InputFile.from_bytes(content, f"{file_id}.{extension}", None),
+                file=InputFile.from_bytes(content, f"{file_id}.{extension}", content_type),
             )
         except Exception as exc:
             logger.error("appwrite upload failed: %s", exc)
             raise StorageError("UPLOAD_FAILED", "No se pudo subir la imagen")
 
-        stored_id = result.get("$id", file_id)
+        stored_id = _as_dict(result).get("$id", file_id)
         return {"file_id": stored_id, "url": cls.public_url(stored_id)}
 
     @staticmethod
@@ -86,7 +104,7 @@ class AppwriteStorageService:
                 logger.error("appwrite list failed: %s", exc)
                 raise StorageError("LIST_FAILED", "No se pudo listar el almacenamiento")
 
-            batch = page.get("files", [])
+            batch = [_as_dict(f) for f in _as_dict(page).get("files", [])]
             files.extend(batch)
             if len(batch) < 100:
                 return files
