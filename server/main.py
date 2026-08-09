@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 import config
 from errors import ApiError
+from services import storage
 from routers import (
     admin,
     auth,
@@ -57,6 +58,19 @@ app.include_router(admin.router)
 app.include_router(posts.public_router)
 app.include_router(posts.admin_router)
 app.include_router(uploads.router)
+
+# Appwrite未設定のときは画像をローカルに置くので、その配信ルートを生やす。
+# 本番でここが有効になるのは設定漏れなので警告を出す
+if storage.backend() == "local":
+    import os
+
+    from fastapi.staticfiles import StaticFiles
+
+    os.makedirs(config.LOCAL_UPLOAD_DIR, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=config.LOCAL_UPLOAD_DIR), name="uploads")
+    logging.getLogger("uvicorn.error").warning(
+        "画像をローカルに保存します（Appwrite未設定）。Herokuでは再起動で消えるため本番では設定すること"
+    )
 
 if config.CPALEAD_MOCK:
     # 本番で誤って有効になっていた場合に気づけるよう、起動時に警告を出す

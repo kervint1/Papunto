@@ -7,7 +7,8 @@ from sqlmodel import Session
 
 import config
 from models import User
-from services.appwrite_storage import AppwriteError, AppwriteStorageService
+from services import storage
+from services.storage import StorageError
 from services.auth_service import AuthService
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 100
@@ -53,21 +54,21 @@ def test_config_endpoint_requires_admin(client, user, admin):
 
 def test_rejects_non_image():
     """画像以外を投げられる口を塞いでいること"""
-    with pytest.raises(AppwriteError) as e:
-        AppwriteStorageService.validate(b"<?php echo 1; ?>", "application/x-php")
+    with pytest.raises(StorageError) as e:
+        storage.validate(b"<?php echo 1; ?>", "application/x-php")
     assert e.value.code == "INVALID_FILE_TYPE"
 
 
 def test_rejects_empty_file():
-    with pytest.raises(AppwriteError) as e:
-        AppwriteStorageService.validate(b"", "image/png")
+    with pytest.raises(StorageError) as e:
+        storage.validate(b"", "image/png")
     assert e.value.code == "EMPTY_FILE"
 
 
 def test_rejects_oversized(monkeypatch):
     monkeypatch.setattr(config, "UPLOAD_MAX_BYTES", 10)
-    with pytest.raises(AppwriteError) as e:
-        AppwriteStorageService.validate(b"x" * 11, "image/png")
+    with pytest.raises(StorageError) as e:
+        storage.validate(b"x" * 11, "image/png")
     assert e.value.code == "FILE_TOO_LARGE"
 
 
@@ -76,20 +77,21 @@ def test_rejects_oversized(monkeypatch):
     [("image/png", "png"), ("image/jpeg", "jpg"), ("image/webp", "webp"), ("IMAGE/PNG", "png")],
 )
 def test_accepts_images(content_type, expected):
-    assert AppwriteStorageService.validate(PNG, content_type) == expected
+    assert storage.validate(PNG, content_type) == expected
 
 
 # ---------------------------------------------------------------- 設定未投入
 
-def test_upload_without_config_returns_503(client, admin, monkeypatch):
-    """設定が無い環境でも起動でき、呼んだ時に分かるエラーになること"""
+def test_falls_back_to_local_storage(client, admin, monkeypatch, tmp_path):
+    """Appwrite未設定でも画像を保存できること（ローカル保存）"""
+    # Appwrite未設定ならローカルに保存される（開発用のフォールバック）
     monkeypatch.setattr(config, "APPWRITE_PROJECT_ID", "")
     monkeypatch.setattr(config, "APPWRITE_API_KEY", "")
-    monkeypatch.setattr(AppwriteStorageService, "_storage", None)
+    monkeypatch.setattr(config, "LOCAL_UPLOAD_DIR", str(tmp_path))
 
     res = upload(client, admin)
-    assert res.status_code == 503
-    assert res.json()["error"]["code"] == "STORAGE_NOT_CONFIGURED"
+    assert res.status_code == 201
+    assert "/uploads/" in res.json()["url"]
 
 
 def test_invalid_type_returns_422_before_touching_appwrite(client, admin, monkeypatch):
@@ -100,22 +102,31 @@ def test_invalid_type_returns_422_before_touching_appwrite(client, admin, monkey
     assert res.json()["error"]["code"] == "INVALID_FILE_TYPE"
 
 
-def test_config_reports_disabled_when_unset(client, admin, monkeypatch):
+def test_config_reports_local_backend_when_appwrite_unset(client, admin, monkeypatch):
     monkeypatch.setattr(config, "APPWRITE_PROJECT_ID", "")
     body = client.get("/api/v1/admin/uploads/config", headers=auth(admin)).json()
-    assert body["enabled"] is False
+    assert body["enabled"] is True
+    assert body["backend"] == "local"
     assert "image/png" in body["allowed_types"]
 
 
 # ---------------------------------------------------------------- URL
 
 def test_public_url_and_roundtrip(monkeypatch):
+    from services.appwrite_storage import AppwriteStorageService
+
     monkeypatch.setattr(config, "APPWRITE_PROJECT_ID", "proj1")
     monkeypatch.setattr(config, "APPWRITE_BUCKET_ID", "media")
     url = AppwriteStorageService.public_url("file123")
     assert "/buckets/media/files/file123/view" in url
-    assert AppwriteStorageService.file_id_from_url(url) == "file123"
+    assert storage.file_id_from_url(url) == "file123"
+
+
+def test_local_url_roundtrip(monkeypatch):
+    monkeypatch.setattr(config, "PUBLIC_BASE_URL", "http://localhost:8000")
+    url = "http://localhost:8000/uploads/abc123.png"
+    assert storage.file_id_from_url(url) == "abc123"
 
 
 def test_file_id_from_unrelated_url():
-    assert AppwriteStorageService.file_id_from_url("https://example.com/a.png") is None
+    assert storage.file_id_from_url("https://example.com/a.png") is None

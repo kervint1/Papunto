@@ -70,6 +70,10 @@ APPWRITE_BUCKET_ID = os.getenv("APPWRITE_BUCKET_ID", "papunto-media")
 
 # 受け付ける画像の上限と種類。管理者しか触らない経路だが、
 # 画像以外を投げられる口は塞いでおく
+# ローカル保存の置き場所（Appwrite未設定のときに使う開発用）。
+# Herokuのファイルシステムは揮発性なので本番では必ずAppwriteを設定すること
+LOCAL_UPLOAD_DIR = os.getenv("LOCAL_UPLOAD_DIR", os.path.join(os.path.dirname(__file__), "uploads"))
+
 UPLOAD_MAX_BYTES = int(os.getenv("UPLOAD_MAX_BYTES", str(5 * 1024 * 1024)))
 UPLOAD_ALLOWED_TYPES = {
     "image/jpeg": "jpg",

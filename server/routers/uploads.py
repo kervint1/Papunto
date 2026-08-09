@@ -12,8 +12,8 @@ import config
 from database import get_session
 from dependencies import require_admin
 from errors import ApiError
-from services import post_images
-from services.appwrite_storage import AppwriteError, AppwriteStorageService
+from services import post_images, storage
+from services.storage import StorageError
 
 router = APIRouter(
     prefix="/api/v1/admin/uploads", tags=["admin-uploads"], dependencies=[Depends(require_admin)]
@@ -29,7 +29,7 @@ _ERROR_STATUS = {
 }
 
 
-def _raise(exc: AppwriteError) -> NoReturn:
+def _raise(exc: StorageError) -> NoReturn:
     raise ApiError(_ERROR_STATUS.get(exc.code, 502), exc.code, exc.message)
 
 
@@ -43,8 +43,8 @@ async def upload_image(file: UploadFile = File(...)):
     # 先に全体を読む。上限が5MB程度なのでメモリに載せて問題ない
     content = await file.read()
     try:
-        result = AppwriteStorageService.upload(content, file.content_type)
-    except AppwriteError as exc:
+        result = storage.upload(content, file.content_type)
+    except StorageError as exc:
         _raise(exc)
     return UploadRead(**result)
 
@@ -56,9 +56,9 @@ class DeleteBody(BaseModel):
 @router.post("/delete", status_code=204)
 def delete_image(body: DeleteBody):
     """差し替え時に古い画像を消す。失敗しても致命的ではないので握りつぶす"""
-    file_id = AppwriteStorageService.file_id_from_url(body.url)
+    file_id = storage.file_id_from_url(body.url)
     if file_id:
-        AppwriteStorageService.delete(file_id)
+        storage.delete(file_id)
 
 
 class CleanupResult(BaseModel):
@@ -75,7 +75,7 @@ def cleanup_unused(session: Session = Depends(get_session)):
     """
     try:
         result = post_images.cleanup_orphans(session)
-    except AppwriteError as exc:
+    except StorageError as exc:
         _raise(exc)
     return CleanupResult(**result)
 
@@ -84,6 +84,7 @@ class UploadConfig(BaseModel):
     """管理画面がアップロード可否と制限を知るための情報"""
 
     enabled: bool
+    backend: str
     max_bytes: int
     allowed_types: list[str]
 
@@ -91,7 +92,9 @@ class UploadConfig(BaseModel):
 @router.get("/config", response_model=UploadConfig)
 def upload_config():
     return UploadConfig(
-        enabled=bool(config.APPWRITE_PROJECT_ID and config.APPWRITE_API_KEY),
+        # ローカル保存があるので常に使える。backendで実際の保管先が分かる
+        enabled=True,
+        backend=storage.backend(),
         max_bytes=config.UPLOAD_MAX_BYTES,
         allowed_types=sorted(config.UPLOAD_ALLOWED_TYPES.keys()),
     )

@@ -505,6 +505,8 @@ export async function deleteAdminPost(token: string, id: string): Promise<void> 
 
 export interface UploadConfig {
   enabled: boolean;
+  /** "appwrite" か "local"。localは開発用で、Herokuでは再起動で消える */
+  backend: string;
   max_bytes: number;
   allowed_types: string[];
 }

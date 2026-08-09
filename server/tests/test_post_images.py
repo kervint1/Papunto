@@ -9,7 +9,7 @@ from sqlmodel import Session
 import config
 from models import Post, User
 from services import post_images
-from services.appwrite_storage import AppwriteStorageService
+from services import storage
 from services.auth_service import AuthService
 
 
@@ -37,9 +37,7 @@ def auth(u: User) -> dict:
 def deleted_fixture(monkeypatch):
     """AppwriteのdeleteをキャプチャしてIDを記録する"""
     seen: list[str] = []
-    monkeypatch.setattr(
-        AppwriteStorageService, "delete", staticmethod(lambda fid: (seen.append(fid), True)[1])
-    )
+    monkeypatch.setattr(storage, "delete", lambda fid: (seen.append(fid), True)[1])
     return seen
 
 
@@ -161,14 +159,14 @@ def test_orphan_cleanup_keeps_referenced_and_recent(session, admin, monkeypatch,
     session.commit()
 
     monkeypatch.setattr(
-        AppwriteStorageService,
+        storage,
         "list_files",
-        classmethod(lambda cls: [
+        lambda: [
             {"$id": "used", "$createdAt": "2020-01-01T00:00:00.000+00:00"},
             {"$id": "orphan-old", "$createdAt": "2020-01-01T00:00:00.000+00:00"},
             # 直近のアップロードは編集中の可能性があるので残す
             {"$id": "orphan-fresh", "$createdAt": "2999-01-01T00:00:00.000+00:00"},
-        ]),
+        ],
     )
 
     result = post_images.cleanup_orphans(session)
