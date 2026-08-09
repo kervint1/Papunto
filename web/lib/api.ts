@@ -541,3 +541,14 @@ export async function deleteImage(token: string, url: string): Promise<void> {
     body: JSON.stringify({ url }),
   }).catch(() => undefined);
 }
+
+/** どの記事からも参照されていない画像を消す（24時間以上前のもののみ） */
+export function cleanupUnusedImages(
+  token: string
+): Promise<{ deleted: number; kept: number }> {
+  return apiFetch<{ deleted: number; kept: number }>(
+    "/api/v1/admin/uploads/cleanup",
+    token,
+    { method: "POST" }
+  );
+}

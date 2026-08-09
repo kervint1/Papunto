@@ -6,10 +6,13 @@ from typing import NoReturn
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel
+from sqlmodel import Session
 
 import config
+from database import get_session
 from dependencies import require_admin
 from errors import ApiError
+from services import post_images
 from services.appwrite_storage import AppwriteError, AppwriteStorageService
 
 router = APIRouter(
@@ -22,6 +25,7 @@ _ERROR_STATUS = {
     "FILE_TOO_LARGE": 413,
     "STORAGE_NOT_CONFIGURED": 503,
     "UPLOAD_FAILED": 502,
+    "LIST_FAILED": 502,
 }
 
 
@@ -55,6 +59,25 @@ def delete_image(body: DeleteBody):
     file_id = AppwriteStorageService.file_id_from_url(body.url)
     if file_id:
         AppwriteStorageService.delete(file_id)
+
+
+class CleanupResult(BaseModel):
+    deleted: int
+    kept: int
+
+
+@router.post("/cleanup", response_model=CleanupResult)
+def cleanup_unused(session: Session = Depends(get_session)):
+    """どの記事からも参照されていない画像を消す。
+
+    「ペーストしたが保存せずに離脱した」画像を拾うための手動実行用。
+    アップロードから24時間経ったものだけを対象にするので、編集中のものは消えない
+    """
+    try:
+        result = post_images.cleanup_orphans(session)
+    except AppwriteError as exc:
+        _raise(exc)
+    return CleanupResult(**result)
 
 
 class UploadConfig(BaseModel):

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
+  cleanupUnusedImages,
   createAdminPost,
   getAdminPosts,
   setPostPublished,
@@ -40,6 +41,7 @@ export default function AdminPosts() {
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
 
   const load = useCallback(() => {
     if (!token) return;
@@ -80,13 +82,35 @@ export default function AdminPosts() {
     <>
       <div className="flex items-start justify-between gap-4">
         <PageTitle title="Artículos" sub="Blog Pandia. Se publican en /blog" />
-        <button
-          type="button"
-          onClick={createNew}
-          className="shrink-0 rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
-        >
-          Nuevo artículo
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            disabled={cleaning}
+            onClick={async () => {
+              if (!token) return;
+              setCleaning(true);
+              try {
+                const r = await cleanupUnusedImages(token);
+                alert(`Imágenes eliminadas: ${r.deleted} (conservadas: ${r.kept})`);
+              } catch (e) {
+                alert(e instanceof Error ? e.message : "Error");
+              } finally {
+                setCleaning(false);
+              }
+            }}
+            className="rounded-lg border border-neutral-200 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+            title="Elimina imágenes que ningún artículo usa (subidas hace más de 24 h)"
+          >
+            {cleaning ? "Limpiando..." : "Limpiar imágenes"}
+          </button>
+          <button
+            type="button"
+            onClick={createNew}
+            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+          >
+            Nuevo artículo
+          </button>
+        </div>
       </div>
 
       <FilterTabs

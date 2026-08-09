@@ -101,6 +101,30 @@ class AppwriteStorageService:
         )
 
     @classmethod
+    def list_files(cls) -> list[dict]:
+        """バケット内の全ファイル。未参照ファイルの掃除に使う"""
+        storage = cls._client()
+        from appwrite.query import Query
+
+        files: list[dict] = []
+        offset = 0
+        while True:
+            try:
+                page = storage.list_files(
+                    bucket_id=config.APPWRITE_BUCKET_ID,
+                    queries=[Query.limit(100), Query.offset(offset)],
+                )
+            except Exception as exc:
+                logger.error("appwrite list failed: %s", exc)
+                raise AppwriteError("LIST_FAILED", "No se pudo listar el almacenamiento")
+
+            batch = page.get("files", [])
+            files.extend(batch)
+            if len(batch) < 100:
+                return files
+            offset += len(batch)
+
+    @classmethod
     def delete(cls, file_id: str) -> bool:
         try:
             cls._client().delete_file(bucket_id=config.APPWRITE_BUCKET_ID, file_id=file_id)

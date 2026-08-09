@@ -33,7 +33,7 @@ from schemas.post import (
     PublicPostRead,
 )
 from routers.admin import invalidate_stats_cache
-from services import admin_service
+from services import admin_service, post_images
 
 logger = logging.getLogger("posts")
 
@@ -159,6 +159,9 @@ def update_post(post_id: UUID, body: PostUpdate, session: Session = Depends(get_
     if post is None:
         raise ApiError(404, "POST_NOT_FOUND", "Artículo no encontrado")
 
+    # 保存前後で本文・カバー画像から参照が外れた画像を後で消すため、先に控えておく
+    before = post_images.extract_file_ids(post.body, post.image_url)
+
     data = body.model_dump(exclude_unset=True)
     if "slug" in data and data["slug"]:
         # 公開後にslugを変えるとURLが変わり、それまでの検索評価を失う
@@ -175,6 +178,19 @@ def update_post(post_id: UUID, body: PostUpdate, session: Session = Depends(get_
     session.add(post)
     session.commit()
     session.refresh(post)
+
+    # 参照が外れた画像を掃除する。Appwrite未設定や通信失敗で記事の保存を
+    # 巻き戻したくないので、commit後に行い失敗しても握りつぶす
+    try:
+        post_images.cleanup_removed(
+            session,
+            post_id=post.id,
+            before=before,
+            after=post_images.extract_file_ids(post.body, post.image_url),
+        )
+    except Exception as exc:
+        logger.warning("image cleanup skipped: %s", exc)
+
     return PostRead.model_validate(post, from_attributes=True)
 
 
@@ -258,6 +274,14 @@ def delete_post(
         target_id=str(post.id),
         detail={"slug": post.slug, "title": post.title},
     )
+    used = post_images.extract_file_ids(post.body, post.image_url)
+
     invalidate_stats_cache()
     session.delete(post)
     session.commit()
+
+    # 記事ごと消えたので、その記事だけが使っていた画像も消す
+    try:
+        post_images.cleanup_removed(session, post_id=post.id, before=used, after=set())
+    except Exception as exc:
+        logger.warning("image cleanup skipped: %s", exc)
