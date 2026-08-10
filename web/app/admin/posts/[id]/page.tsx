@@ -332,8 +332,8 @@ export default function PostEditor() {
                 published
                   ? "No se puede cambiar después de publicar (se perdería el posicionamiento)."
                   : post.slug_custom
-                    ? "Definida a mano. Vacíala para volver a seguir el título."
-                    : "Sigue al título. Escríbela a mano si quieres acortarla."
+                    ? "Definida a mano. Vacíala para generarla del título otra vez."
+                    : "Se genera del título, sin palabras de relleno. No hace falta tocarla."
               }
             >
               <input

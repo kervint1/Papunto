@@ -34,6 +34,17 @@ NerdWalletやFetchはカテゴリをパスに含めるが、**カテゴリの性
 
 カテゴリ別の一覧が必要になったら、記事URLを変えずに `/blog/categoria/<id>` を足せる。将来カテゴリを固定分類に変えるなら、URLに入れる選択肢は復活する。
 
+### slugは書き手が触らない
+
+タイトルをそのまま落とすとURLが長くなる（スペイン語は `de` `con` `en` `para` のような機能語が多い）。毎回手で短くするのは続かないので、`auto_slug()` が機能語を落として8語・60文字で切る。
+
+```
+Cómo ganar dinero con encuestas en Perú (guía 2026)
+  → /blog/como-ganar-dinero-encuestas-peru-guia-2026
+```
+
+`cómo` `dónde` `qué` のような疑問詞は**落とさない**。狙う検索クエリそのものだからで（"cómo ganar dinero"）、落とすと `/blog/papunto` のような無意味なURLになる。手で入力したslugは意図があるので短縮せず、書いたとおりに使う。
+
 ### 付随して直した不具合
 
 管理画面の「新規作成」は仮タイトル `Nuevo artículo` で記事を作るが、**slugは作成時に一度生成されるだけでタイトルに追従しなかった**。エディタは読み込んだslugをそのまま送り返すため、手で直さない限り全記事が `nuevo-articulo-N` のまま公開される状態だった。

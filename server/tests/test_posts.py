@@ -51,9 +51,52 @@ def test_created_as_draft(client, admin):
 
 
 def test_slug_generated_from_title_without_accents(client, admin):
-    """アクセント付き文字がURLに残らないこと"""
+    """アクセント付き文字がURLに残らないこと。機能語の en は落ちる"""
     post = create(client, admin, title="Cómo ganar dinero en Perú ñandú")
-    assert post["slug"] == "como-ganar-dinero-en-peru-nandu"
+    assert post["slug"] == "como-ganar-dinero-peru-nandu"
+
+
+@pytest.mark.parametrize(
+    "title,expected",
+    [
+        # 機能語（con / en / de / para）が落ちて短くなる
+        ("Cómo ganar dinero con encuestas en Perú", "como-ganar-dinero-encuestas-peru"),
+        ("Las mejores apps para ganar dinero", "mejores-apps-ganar-dinero"),
+        # 疑問詞は検索クエリそのものなので残す（"¿qué es X?" が読める形で残ること）
+        ("Dónde cobrar tus puntos", "donde-cobrar-tus-puntos"),
+        ("Qué es Papunto", "que-papunto"),
+        # 長いタイトルは文字数で切る。語の途中では切らない
+        (
+            "Guia completa sobre encuestas pagadas rapidas seguras confiables gratuitas online Peru",
+            "guia-completa-encuestas-pagadas-rapidas-seguras-confiables",
+        ),
+        # 機能語だけのタイトルは素のslugifyに戻す（空にしない）
+        ("El de la", "el-de-la"),
+        # 記号だけでも必ず何か返す
+        ("!!!", "post"),
+    ],
+)
+def test_auto_slug_shortens_title(title, expected):
+    """スペイン語のタイトルは長くなりやすく、そのままURLにすると
+    検索結果でもSNSでも途中で切れて読めなくなる"""
+    from routers.posts import auto_slug
+
+    assert auto_slug(title) == expected
+
+
+def test_auto_slug_stays_within_url_limit():
+    from routers.posts import AUTO_SLUG_MAX_CHARS, auto_slug
+
+    slug = auto_slug("palabra " * 40)
+    assert len(slug) <= AUTO_SLUG_MAX_CHARS
+    assert not slug.endswith("-")
+
+
+def test_manual_slug_keeps_stop_words(client, admin):
+    """手で書いたslugは意図があるので短縮しない"""
+    post = create(client, admin, slug="guia-de-la-app")
+    assert post["slug"] == "guia-de-la-app"
+    assert post["slug_custom"] is True
 
 
 def test_duplicate_slug_gets_suffix(client, admin):
@@ -160,7 +203,7 @@ def test_draft_slug_follows_title(client, admin):
         json={"title": "Cómo ganar dinero con encuestas"},
         headers=auth(admin),
     )
-    assert res.json()["slug"] == "como-ganar-dinero-con-encuestas"
+    assert res.json()["slug"] == "como-ganar-dinero-encuestas"
     assert res.json()["slug_custom"] is False
 
 

@@ -46,15 +46,54 @@ PER_PAGE_MAX = 100
 
 
 def slugify(value: str) -> str:
-    """タイトルからURL用のスラッグを作る。
+    """文字列をURLで使える形に整える。
 
     スペイン語のアクセント付き文字（á, ñ 等）をASCIIに落としてから整形する。
-    そのまま使うとURLがパーセントエンコードされて読めなくなるため
+    そのまま使うとURLがパーセントエンコードされて読めなくなるため。
+
+    管理者が手で入力したslugにはこれだけを使う（意図して書いた語を削らない）
     """
     normalized = unicodedata.normalize("NFKD", value)
     ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_only).strip("-").lower()
     return slug[:80] or "post"
+
+
+# スペイン語の機能語。検索エンジンは無視するうえ、残すとURLが無駄に長くなる。
+# 「cómo」「dónde」等の疑問詞は検索クエリそのものなので**外さない**
+# （"cómo ganar dinero" が狙うクエリ）
+_STOP_WORDS = frozenset(
+    """
+    a al ante bajo con contra de del desde durante e en entre hacia hasta la las lo los
+    mas o para pero por se segun si sin sobre su sus tras un una unos unas y
+    el ella ellos es esta este esto son fue ser
+    """.split()
+)
+
+AUTO_SLUG_MAX_WORDS = 8
+AUTO_SLUG_MAX_CHARS = 60
+
+
+def auto_slug(title: str) -> str:
+    """タイトルからslugを自動生成する。
+
+    slugifyしたうえで機能語を落とし、語数と文字数で頭を切る。
+    スペイン語のタイトルは "Cómo ganar dinero con encuestas en Perú (guía 2026)" のように
+    長くなりやすく、そのままURLにすると検索結果でもSNSでも途中で切れて読めなくなるため。
+
+    機能語を全部落とすと空になる場合（タイトルが機能語だけ）は素のslugifyに戻す
+    """
+    words = [w for w in slugify(title).split("-") if w]
+    kept = [w for w in words if w not in _STOP_WORDS] or words
+
+    result: list[str] = []
+    for word in kept[:AUTO_SLUG_MAX_WORDS]:
+        candidate = "-".join(result + [word])
+        if result and len(candidate) > AUTO_SLUG_MAX_CHARS:
+            break
+        result.append(word)
+
+    return "-".join(result)[:AUTO_SLUG_MAX_CHARS].strip("-") or "post"
 
 
 def unique_slug(session: Session, base: str, exclude_id: Optional[UUID] = None) -> str:
@@ -136,7 +175,8 @@ def create_post(body: PostCreate, session: Session = Depends(get_session)):
     if not body.title.strip():
         raise ApiError(422, "INVALID_TITLE", "El título es obligatorio")
 
-    base = slugify(body.slug or body.title)
+    # 手入力は書いたとおりに、自動生成は機能語を落として短くする
+    base = slugify(body.slug) if body.slug else auto_slug(body.title)
     post = Post(
         slug=unique_slug(session, base),
         slug_custom=bool(body.slug),
@@ -185,7 +225,7 @@ def update_post(post_id: UUID, body: PostUpdate, session: Session = Depends(get_
     # nuevo-articulo-N のまま公開されてしまう
     if post.status != STATUS_PUBLISHED and not data.get("slug_custom", post.slug_custom):
         data["slug"] = unique_slug(
-            session, slugify(data.get("title", post.title)), exclude_id=post.id
+            session, auto_slug(data.get("title", post.title)), exclude_id=post.id
         )
 
     for key, value in data.items():
