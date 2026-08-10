@@ -149,6 +149,74 @@ def test_slug_locked_after_publish(client, admin):
     assert res.json()["error"]["code"] == "SLUG_LOCKED"
 
 
+def test_draft_slug_follows_title(client, admin):
+    """管理画面は仮タイトルで記事を作るため、追従しないと全記事が
+    nuevo-articulo-N のまま公開されてしまう"""
+    post = create(client, admin, title="Nuevo artículo")
+    assert post["slug"] == "nuevo-articulo"
+
+    res = client.patch(
+        f"/api/v1/admin/posts/{post['id']}",
+        json={"title": "Cómo ganar dinero con encuestas"},
+        headers=auth(admin),
+    )
+    assert res.json()["slug"] == "como-ganar-dinero-con-encuestas"
+    assert res.json()["slug_custom"] is False
+
+
+def test_resaving_generated_slug_does_not_lock_it(client, admin):
+    """管理画面は読み込んだslugをそのまま送り返す。それを手動指定と誤認すると
+    一度保存しただけで追従が止まる"""
+    post = create(client, admin, title="Borrador")
+    res = client.patch(
+        f"/api/v1/admin/posts/{post['id']}",
+        json={"title": "Título nuevo", "slug": post["slug"]},
+        headers=auth(admin),
+    )
+    assert res.json()["slug"] == "titulo-nuevo"
+    assert res.json()["slug_custom"] is False
+
+
+def test_manual_slug_stops_following_title(client, admin):
+    post = create(client, admin, title="Borrador")
+    res = client.patch(
+        f"/api/v1/admin/posts/{post['id']}", json={"slug": "encuestas-peru"}, headers=auth(admin)
+    )
+    assert res.json()["slug"] == "encuestas-peru"
+    assert res.json()["slug_custom"] is True
+
+    res = client.patch(
+        f"/api/v1/admin/posts/{post['id']}", json={"title": "Otro título"}, headers=auth(admin)
+    )
+    assert res.json()["slug"] == "encuestas-peru"
+
+
+def test_clearing_slug_returns_to_following_title(client, admin):
+    post = create(client, admin, title="Borrador")
+    client.patch(
+        f"/api/v1/admin/posts/{post['id']}", json={"slug": "manual"}, headers=auth(admin)
+    )
+    res = client.patch(
+        f"/api/v1/admin/posts/{post['id']}",
+        json={"slug": "", "title": "Título final"},
+        headers=auth(admin),
+    )
+    assert res.json()["slug"] == "titulo-final"
+    assert res.json()["slug_custom"] is False
+
+
+def test_published_slug_does_not_follow_title(client, admin):
+    """公開後はタイトルを直してもURLは動かさない"""
+    post = create(client, admin)
+    client.post(f"/api/v1/admin/posts/{post['id']}/publish", headers=auth(admin))
+
+    res = client.patch(
+        f"/api/v1/admin/posts/{post['id']}", json={"title": "Otro título"}, headers=auth(admin)
+    )
+    assert res.status_code == 200
+    assert res.json()["slug"] == post["slug"]
+
+
 def test_partial_update_keeps_other_fields(client, admin):
     post = create(client, admin)
     res = client.patch(

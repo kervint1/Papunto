@@ -433,6 +433,8 @@ export function getAdminLogs(
 export interface AdminPost {
   id: string;
   slug: string;
+  /** falseなら下書きの間はタイトルの変更にslugが追従する */
+  slug_custom: boolean;
   title: string;
   description: string;
   body: string;

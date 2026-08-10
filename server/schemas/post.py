@@ -38,6 +38,7 @@ class PostRead(PostBase):
 
     id: uuid.UUID
     slug: str
+    slug_custom: bool = False  # falseならタイトルの変更にslugが追従する
     status: str
     published_at: Optional[datetime] = None
     created_at: datetime

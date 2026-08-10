@@ -331,7 +331,9 @@ export default function PostEditor() {
               hint={
                 published
                   ? "No se puede cambiar después de publicar (se perdería el posicionamiento)."
-                  : "Se genera del título si lo dejas vacío."
+                  : post.slug_custom
+                    ? "Definida a mano. Vacíala para volver a seguir el título."
+                    : "Sigue al título. Escríbela a mano si quieres acortarla."
               }
             >
               <input

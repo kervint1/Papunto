@@ -22,6 +22,8 @@ class Post(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     slug: str = Field(unique=True, index=True)  # URLになる。公開後は変えない
+    # 管理者が手でslugを決めたか。falseの下書きはタイトルの変更に追従する
+    slug_custom: bool = Field(default=False)
     title: str
     description: str = Field(default="")  # 検索結果と一覧に出る説明文
     body: str = Field(default="")  # Markdown

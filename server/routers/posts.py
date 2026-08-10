@@ -139,6 +139,7 @@ def create_post(body: PostCreate, session: Session = Depends(get_session)):
     base = slugify(body.slug or body.title)
     post = Post(
         slug=unique_slug(session, base),
+        slug_custom=bool(body.slug),
         title=body.title,
         description=body.description,
         body=body.body,
@@ -169,7 +170,23 @@ def update_post(post_id: UUID, body: PostUpdate, session: Session = Depends(get_
             raise ApiError(
                 409, "SLUG_LOCKED", "No se puede cambiar la URL de un artículo publicado"
             )
-        data["slug"] = unique_slug(session, slugify(data["slug"]), exclude_id=post.id)
+        new_slug = unique_slug(session, slugify(data["slug"]), exclude_id=post.id)
+        # 自動生成の結果をそのまま送り返してきただけなら、手動指定とはみなさない。
+        # そうしないと一度保存した時点で追従が止まってしまう
+        if new_slug != post.slug:
+            data["slug_custom"] = True
+        data["slug"] = new_slug
+    elif "slug" in data:
+        # 空で送られたら自動に戻す（管理画面の「空にすると追従する」表示と対）
+        data["slug_custom"] = False
+
+    # 手動指定でない下書きのslugは、常にタイトルから作り直す。
+    # 管理画面は仮タイトルで記事を作るため、追従させないと全記事が
+    # nuevo-articulo-N のまま公開されてしまう
+    if post.status != STATUS_PUBLISHED and not data.get("slug_custom", post.slug_custom):
+        data["slug"] = unique_slug(
+            session, slugify(data.get("title", post.title)), exclude_id=post.id
+        )
 
     for key, value in data.items():
         setattr(post, key, value)
