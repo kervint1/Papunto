@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AdminFab } from "@/components/AdminFab";
 import { Footer } from "@/components/Footer";
 import { LANG, LOCALE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { Providers } from "./providers";
@@ -82,6 +83,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex-1">{children}</div>
           <Footer />
+          <AdminFab />
         </Providers>
       </body>
     </html>
