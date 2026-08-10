@@ -15,6 +15,7 @@ import {
   type AdminPost,
   type UploadConfig,
 } from "@/lib/api";
+import { POST_CATEGORIES } from "@/lib/categories";
 import { Card, PageTitle, StatusBadge, fmtDate, useAdminToken } from "../../ui";
 import { BodyEditor } from "./editor";
 
@@ -249,7 +250,7 @@ export default function PostEditor() {
           <StatusBadge status={published ? "approved" : "pending"} />
           {published && (
             <a
-              href={`/blog/posts/${post.slug}`}
+              href={`/blog/${post.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm hover:bg-neutral-50"
@@ -341,7 +342,37 @@ export default function PostEditor() {
               />
             </Field>
 
-            <Field label="Etiquetas" hint="Separadas por comas. Definen la categoría en el blog.">
+            {/* カテゴリはタグの文字列一致で決まる。自由入力だと綴りがずれて
+                どのカテゴリにも入らないため、チェックで正規のタグを出し入れする */}
+            <div>
+              <span className="text-xs text-neutral-500">Categorías</span>
+              <div className="mt-1 space-y-1.5">
+                {POST_CATEGORIES.map((c) => {
+                  const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
+                  const on = tags.some((t) => t.toLowerCase() === c.canonical);
+                  return (
+                    <label key={c.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => {
+                          const next = on
+                            ? tags.filter((t) => t.toLowerCase() !== c.canonical)
+                            : [...tags, c.canonical];
+                          set("tags")(next.join(", "));
+                        }}
+                      />
+                      <span className={on ? "text-neutral-900" : "text-neutral-500"}>{c.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <span className="mt-1 block text-xs text-neutral-400">
+                Define en qué sección del blog aparece. Puedes marcar varias.
+              </span>
+            </div>
+
+            <Field label="Etiquetas" hint="Se usan para mostrar el tema. Las categorías de arriba se añaden aquí automáticamente.">
               <input value={form.tags} onChange={(e) => set("tags")(e.target.value)} className={input} />
             </Field>
 

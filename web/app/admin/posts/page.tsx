@@ -161,7 +161,7 @@ export default function AdminPosts() {
             <Cell mono className="max-w-[14rem] truncate text-neutral-500">
               {p.status === "published" ? (
                 <a
-                  href={`/blog/posts/${p.slug}`}
+                  href={`/blog/${p.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:underline"
