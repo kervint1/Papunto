@@ -45,6 +45,16 @@ Cómo ganar dinero con encuestas en Perú (guía 2026)
 
 `cómo` `dónde` `qué` のような疑問詞は**落とさない**。狙う検索クエリそのものだからで（"cómo ganar dinero"）、落とすと `/blog/papunto` のような無意味なURLになる。手で入力したslugは意図があるので短縮せず、書いたとおりに使う。
 
+### 名前空間の衝突対策
+
+記事を `/blog/<slug>` 直下に置くと、メディア側のルートと名前空間を共有する。Next.jsは静的セグメントを動的セグメントより優先するため、`/blog/categoria/...` を足した時点で slug が `categoria` の記事は**エラーを出さずに404になる**。評価を積んだ記事が消えても気づけない。
+
+対策として `server/routers/posts.py` の `RESERVED_SLUGS` を「埋まっている」扱いにし、記事が予約語を取れないようにした（`categoria` → `categoria-2`）。手入力のslugにも同じ判定が効く。
+
+**カテゴリやタグは `/blog/categoria/<id>` のように一段掘って置く。** そうすれば予約語が増えるのは機能を足すときの1語だけで、カテゴリ数やタグ数には比例しない。
+
+なお予約語リストはpapunto側にあり、ルートを足すのはpapunto-pandia側なので、同期は強制されない。pandiaの `app/[slug]/page.tsx` 冒頭に注意書きを置いてある。
+
 ### 付随して直した不具合
 
 管理画面の「新規作成」は仮タイトル `Nuevo artículo` で記事を作るが、**slugは作成時に一度生成されるだけでタイトルに追従しなかった**。エディタは読み込んだslugをそのまま送り返すため、手で直さない限り全記事が `nuevo-articulo-N` のまま公開される状態だった。

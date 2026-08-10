@@ -96,16 +96,35 @@ def auto_slug(title: str) -> str:
     return "-".join(result)[:AUTO_SLUG_MAX_CHARS].strip("-") or "post"
 
 
+# 記事は papunto.pe/blog/<slug> に置かれるため、メディア側(papunto-pandia)の
+# ルートと名前空間を共有している。Next.jsは静的セグメントを動的セグメントより
+# 優先するので、`/blog/categoria/...` を足した時点で slug が "categoria" の記事は
+# **静かに404になる**（エラーが出ないので、評価を積んだ記事が消えても気づけない）。
+#
+# ⚠️ papunto-pandia の app/ 直下にルートを足したら、ここにも同じ語を足すこと。
+#    カテゴリやタグは /blog/categoria/<id> のように一段掘って置く前提なので、
+#    予約語が増えるのは機能を足すときの1語だけで、カテゴリ数には比例しない。
+RESERVED_SLUGS = frozenset(
+    """
+    categoria categorias tag tags etiqueta etiquetas autor autores
+    buscar search page pagina p feed rss sitemap robots
+    sobre nosotros about contacto privacidad terminos legal
+    admin api blog posts articulos archivo assets static _next
+    """.split()
+)
+
+
 def unique_slug(session: Session, base: str, exclude_id: Optional[UUID] = None) -> str:
-    """重複したら -2, -3 と連番を足す"""
+    """重複したら -2, -3 と連番を足す。予約語も「埋まっている」扱いにする"""
     candidate = base
     n = 1
     while True:
-        stmt = select(Post).where(Post.slug == candidate)
-        if exclude_id is not None:
-            stmt = stmt.where(Post.id != exclude_id)
-        if session.exec(stmt).first() is None:
-            return candidate
+        if candidate not in RESERVED_SLUGS:
+            stmt = select(Post).where(Post.slug == candidate)
+            if exclude_id is not None:
+                stmt = stmt.where(Post.id != exclude_id)
+            if session.exec(stmt).first() is None:
+                return candidate
         n += 1
         candidate = f"{base}-{n}"
 

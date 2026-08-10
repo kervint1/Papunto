@@ -92,6 +92,18 @@ def test_auto_slug_stays_within_url_limit():
     assert not slug.endswith("-")
 
 
+def test_reserved_slug_is_avoided(client, admin):
+    """記事は /blog/<slug> に置かれ、メディア側のルートと名前空間を共有する。
+    /blog/categoria/... を足した時点で slug が categoria の記事は静かに404になる"""
+    post = create(client, admin, title="Categoría")
+    assert post["slug"] == "categoria-2"
+
+
+def test_reserved_slug_rejected_even_when_typed_by_hand(client, admin):
+    post = create(client, admin, slug="tags")
+    assert post["slug"] == "tags-2"
+
+
 def test_manual_slug_keeps_stop_words(client, admin):
     """手で書いたslugは意図があるので短縮しない"""
     post = create(client, admin, slug="guia-de-la-app")
