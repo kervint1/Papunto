@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import {
   cleanupUnusedImages,
-  createAdminPost,
   getAdminPosts,
   setPostPublished,
   type AdminPost,
@@ -72,11 +71,9 @@ export default function AdminPosts() {
     }
   };
 
-  const createNew = async () => {
-    if (!token) return;
-    const post = await createAdminPost(token, { title: "Nuevo artículo" });
-    router.push(`/admin/posts/${post.id}`);
-  };
+  // ここではDBに作らない。空の下書きが溜まらないよう、実際の作成は
+  // エディタでの初回保存まで遅らせている
+  const createNew = () => router.push("/admin/posts/new");
 
   return (
     <>

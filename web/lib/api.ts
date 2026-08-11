@@ -460,7 +460,13 @@ export function getAdminPost(token: string, id: string): Promise<AdminPost> {
 
 export function createAdminPost(
   token: string,
-  body: { title: string; description?: string; body?: string; tags?: string[] }
+  body: {
+    title: string;
+    description?: string;
+    body?: string;
+    tags?: string[];
+    image_url?: string | null;
+  }
 ): Promise<AdminPost> {
   return apiFetch<AdminPost>("/api/v1/admin/posts", token, {
     method: "POST",

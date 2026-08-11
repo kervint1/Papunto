@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import {
+  createAdminPost,
   deleteAdminPost,
   deleteImage,
   getAdminPost,
@@ -146,8 +147,17 @@ export default function PostEditor() {
   const [dirty, setDirty] = useState(false);
   const loadedId = useRef<string | null>(null);
 
+  /**
+   * まだDBに存在しない新規記事。
+   *
+   * 「新規作成」で即座に行を作ると、そのまま離脱した分が空の下書きとして
+   * 溜まっていく（nuevo-articulo-2, -3, ... が量産される）。最初の保存まで
+   * 作らないことで、そもそも残らないようにしている
+   */
+  const isNew = params?.id === "new";
+
   useEffect(() => {
-    if (!token || !params?.id || loadedId.current === params.id) return;
+    if (isNew || !token || !params?.id || loadedId.current === params.id) return;
     loadedId.current = params.id;
     getAdminPost(token, params.id)
       .then((p) => {
@@ -162,7 +172,7 @@ export default function PostEditor() {
         });
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Error"));
-  }, [token, params?.id]);
+  }, [isNew, token, params?.id]);
 
   useEffect(() => {
     if (!token) return;
@@ -175,15 +185,40 @@ export default function PostEditor() {
   };
 
   const save = useCallback(async () => {
-    if (!token || !post) return;
+    if (!token) return;
     setSaving(true);
     setError(null);
     try {
+      const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
+
+      // 初回保存でここで初めてDBに作る。以降は通常の更新
+      if (!post) {
+        if (!form.title.trim()) {
+          setError("El título es obligatorio");
+          return;
+        }
+        const created = await createAdminPost(token, {
+          title: form.title,
+          description: form.description,
+          body: form.body,
+          tags,
+          image_url: imageUrl,
+        });
+        setPost(created);
+        setForm((f) => ({ ...f, slug: created.slug }));
+        setSavedAt(new Date());
+        setDirty(false);
+        // URLを実IDに差し替える。replaceなので戻るボタンで /new に戻らない
+        loadedId.current = created.id;
+        router.replace(`/admin/posts/${created.id}`);
+        return;
+      }
+
       const updated = await updateAdminPost(token, post.id, {
         title: form.title,
         description: form.description,
         body: form.body,
-        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        tags,
         image_url: imageUrl,
         // 公開後はURLを変えられないので送らない
         ...(post.status === "published" ? {} : { slug: form.slug }),
@@ -197,7 +232,7 @@ export default function PostEditor() {
     } finally {
       setSaving(false);
     }
-  }, [token, post, form, imageUrl]);
+  }, [token, post, form, imageUrl, router]);
 
   // 離脱時に未保存の変更を警告する（自動保存は入れていない）
   useEffect(() => {
@@ -230,10 +265,10 @@ export default function PostEditor() {
     }
   };
 
-  if (error && !post) return <p className="text-sm text-red-600">{error}</p>;
-  if (!post) return <p className="text-sm text-neutral-400">Cargando...</p>;
+  if (error && !post && !isNew) return <p className="text-sm text-red-600">{error}</p>;
+  if (!post && !isNew) return <p className="text-sm text-neutral-400">Cargando...</p>;
 
-  const published = post.status === "published";
+  const published = post?.status === "published";
 
   return (
     <>
@@ -244,11 +279,17 @@ export default function PostEditor() {
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <PageTitle
           title={form.title || "(sin título)"}
-          sub={published ? `Publicado: ${fmtDate(post.published_at ?? post.updated_at)}` : "Borrador"}
+          sub={
+            !post
+              ? "Sin guardar"
+              : published
+                ? `Publicado: ${fmtDate(post.published_at ?? post.updated_at)}`
+                : "Borrador"
+          }
         />
         <div className="flex shrink-0 items-center gap-2">
-          <StatusBadge status={published ? "approved" : "pending"} />
-          {published && (
+          {post && <StatusBadge status={published ? "approved" : "pending"} />}
+          {published && post && (
             <a
               href={`/blog/${post.slug}`}
               target="_blank"
@@ -258,17 +299,20 @@ export default function PostEditor() {
               Ver
             </a>
           )}
-          <button
-            type="button"
-            onClick={togglePublish}
-            className={`rounded-lg px-4 py-1.5 text-sm ${
-              published
-                ? "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                : "bg-green-600 text-white hover:bg-green-700"
-            }`}
-          >
-            {published ? "Despublicar" : "Publicar"}
-          </button>
+          {/* 保存するまで公開はできない（まだDBに存在しない） */}
+          {post && (
+            <button
+              type="button"
+              onClick={togglePublish}
+              className={`rounded-lg px-4 py-1.5 text-sm ${
+                published
+                  ? "border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                  : "bg-green-600 text-white hover:bg-green-700"
+              }`}
+            >
+              {published ? "Despublicar" : "Publicar"}
+            </button>
+          )}
           <button
             type="button"
             disabled={saving || !dirty}
@@ -331,7 +375,7 @@ export default function PostEditor() {
               hint={
                 published
                   ? "No se puede cambiar después de publicar (se perdería el posicionamiento)."
-                  : post.slug_custom
+                  : post?.slug_custom
                     ? "Definida a mano. Vacíala para generarla del título otra vez."
                     : "Se genera del título, sin palabras de relleno. No hace falta tocarla."
               }
@@ -389,7 +433,7 @@ export default function PostEditor() {
             />
           </Card>
 
-          {!published && (
+          {post && !published && (
             <button
               type="button"
               onClick={remove}
