@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMe } from "@/hooks/useMe";
+import { getDestination } from "@/lib/exchangeDestinations";
 import {
   ApiError,
   createTopUp,
@@ -20,6 +21,19 @@ import {
 export default function RecargaCelularPage() {
   const router = useRouter();
   const { me, token, refresh } = useMe();
+
+  /**
+   * 交換先が無効なら入らせない。
+   *
+   * 一覧では available=false の交換先を選べないようにしているが、
+   * この専用ルートは静的セグメントなので [destination] の判定より優先され、
+   * URLを直接叩くと素通りしていた。ポイントが動く画面なので必ず塞ぐ
+   */
+  const available = getDestination("recarga")?.available ?? false;
+
+  useEffect(() => {
+    if (!available) router.replace("/exchange");
+  }, [available, router]);
 
   const [phone, setPhone] = useState("");
   const [operator, setOperator] = useState<OperatorDetectResult | null>(null);
@@ -38,6 +52,7 @@ export default function RecargaCelularPage() {
   const phoneValid = /^\d{9}$/.test(phone);
   const canWithdraw = points >= minPoints;
   const canSubmit =
+    available &&
     !!token &&
     !submitting &&
     canWithdraw &&
@@ -71,7 +86,8 @@ export default function RecargaCelularPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token || !operator) return;
+    // リダイレクトが効くまでの間に送信されないよう、ここでも止める
+    if (!available || !token || !operator) return;
     setError(null);
     setSubmitting(true);
     try {
