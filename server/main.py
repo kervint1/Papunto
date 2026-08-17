@@ -10,6 +10,7 @@ from services import storage
 from routers import (
     admin,
     auth,
+    campaign,
     complaints,
     me,
     offers,
@@ -48,6 +49,7 @@ def health():
 
 
 app.include_router(auth.router)
+app.include_router(campaign.router)
 app.include_router(me.router)
 app.include_router(phone.router)
 app.include_router(withdrawals.router)

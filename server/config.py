@@ -48,6 +48,19 @@ MAX_REWARD_POINTS = int(os.getenv("MAX_REWARD_POINTS", "100000"))
 POINTS_PER_SOL = int(os.getenv("POINTS_PER_SOL", "100"))          # 100 pts = S/ 1（1pt = 1céntimo）
 MIN_WITHDRAWAL_POINTS = int(os.getenv("MIN_WITHDRAWAL_POINTS", "500"))  # = S/ 5
 
+# --- 事前登録キャンペーン ---
+# 先着の枠数。コードに埋めずここで持つ。100名で始めて、順調なら増やす。
+# 増やすときは設定変更だけで済ませたい（デプロイを伴わせない）
+CAMPAIGN_SLOT_LIMIT = int(os.getenv("CAMPAIGN_SLOT_LIMIT", "100"))
+# 枠内の登録者に付与する報酬
+CAMPAIGN_REWARD_POINTS = int(os.getenv("CAMPAIGN_REWARD_POINTS", "500"))  # = S/ 5
+
+# 換金の開放日（ISO形式 YYYY-MM-DD）。事前登録の期間中は交換させない。
+#
+# 空にすると即座に開放される。⚠️ 本番で意図せず空にすると、
+# キャンペーンの条件（10/1から交換可）と食い違うので注意
+WITHDRAWALS_OPEN_AT = os.getenv("WITHDRAWALS_OPEN_AT", "")
+
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
 # Reloadly: ポイント→携帯キャリア（Claro/Movistar/Entel/Bitel）チャージ交換

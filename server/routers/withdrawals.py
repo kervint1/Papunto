@@ -9,6 +9,7 @@ from database import get_session
 from dependencies import get_current_user
 from errors import ApiError
 from models import User, Withdrawal
+from services import campaign_service
 from schemas.withdrawal import WithdrawalCreate, WithdrawalList, WithdrawalRead
 
 router = APIRouter(prefix="/api/v1/withdrawals", tags=["withdrawals"])
@@ -35,6 +36,17 @@ def create_withdrawal(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    # 事前登録の期間中は交換させない。ポイントの付与は即時だが、
+    # 交換の開放は告知した日付（10/1）まで待つ
+    if not campaign_service.withdrawals_open():
+        opens = campaign_service.withdrawals_open_at()
+        raise ApiError(
+            403,
+            "WITHDRAWALS_NOT_OPEN",
+            f"El canje estará disponible desde el {opens.isoformat()}" if opens else
+            "El canje aún no está disponible",
+        )
+
     # 送金先は登録済みの番号を使う。申請ごとの自由入力だと
     # 登録と送金先がずれ、UNIQUE制約を回避できてしまう
     if not user.phone:

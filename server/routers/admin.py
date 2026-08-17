@@ -131,7 +131,7 @@ def list_users(
     stmt = select(User)
     if q:
         like = f"%{q}%"
-        stmt = stmt.where(User.email.ilike(like) | User.name.ilike(like))
+        stmt = stmt.where(User.email.ilike(like) | User.name.ilike(like) | User.phone.ilike(like))
     stmt = stmt.order_by(User.created_at.desc())
     rows, meta = _paginate(session, stmt, page, per_page)
     return AdminUserList(

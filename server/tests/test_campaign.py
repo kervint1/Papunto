@@ -1,0 +1,145 @@
+"""事前登録キャンペーン。
+
+設計の要点は2つ。
+
+1. **先着順は登録順（users.id）で決まる** — Googleログインだけで番号が確定し、
+   電話番号やタスクを求めない。摩擦を最小にして登録数を最大化するため
+2. **交換の開放は日付で制御する** — ポイントの付与は即時だが、交換は
+   告知した日（10/1）まで待つ。未払いの残高が10月に戻る動機になる
+"""
+import datetime as dt
+
+import pytest
+from sqlmodel import Session
+
+import config
+from models import User
+from services import campaign_service
+from services.auth_service import AuthService
+
+
+def auth(u: User) -> dict:
+    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id, u.google_id)}"}
+
+
+def make_users(session: Session, n: int) -> list[User]:
+    created = []
+    for i in range(n):
+        u = User(google_id=f"g-c{i}", email=f"c{i}@example.com", name=f"U{i}")
+        session.add(u)
+        created.append(u)
+    session.commit()
+    for u in created:
+        session.refresh(u)
+    return created
+
+
+# ---------------------------------------------------------------- 登録順の番号
+
+def test_position_follows_registration_order(client, session, user):
+    """先に登録した人が若い番号になる"""
+    later = make_users(session, 2)
+
+    assert client.get("/api/v1/campaign/me", headers=auth(user)).json()["position"] == 1
+    assert client.get("/api/v1/campaign/me", headers=auth(later[0])).json()["position"] == 2
+    assert client.get("/api/v1/campaign/me", headers=auth(later[1])).json()["position"] == 3
+
+
+def test_within_limit(client, session, user, monkeypatch):
+    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 2)
+    later = make_users(session, 2)
+
+    assert client.get("/api/v1/campaign/me", headers=auth(user)).json()["within_limit"] is True
+    assert client.get("/api/v1/campaign/me", headers=auth(later[0])).json()["within_limit"] is True
+    # 3人目は枠外
+    assert client.get("/api/v1/campaign/me", headers=auth(later[1])).json()["within_limit"] is False
+
+
+def test_my_slot_requires_auth(client):
+    assert client.get("/api/v1/campaign/me").status_code in (401, 403)
+
+
+# ---------------------------------------------------------------- 残り枠（LP用）
+
+def test_status_is_public(client, monkeypatch):
+    """LPに「残り63枠」を出すため認証を求めない。希少性が拡散の動機になる"""
+    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 100)
+    res = client.get("/api/v1/campaign/status")
+    assert res.status_code == 200
+    assert res.json()["slot_limit"] == 100
+
+
+def test_remaining_decreases(client, session, user, monkeypatch):
+    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 5)
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 4  # userが1人いる
+
+    make_users(session, 3)
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 1
+
+
+def test_remaining_never_negative(client, session, monkeypatch):
+    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 2)
+    make_users(session, 5)
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 0
+
+
+def test_limit_is_configurable(client, monkeypatch):
+    """100名で始めて後から増やす。設定変更だけで済ませたい"""
+    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 200)
+    assert client.get("/api/v1/campaign/status").json()["slot_limit"] == 200
+
+
+# ---------------------------------------------------------------- 交換の開放日
+
+def test_open_when_unset(monkeypatch):
+    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "")
+    assert campaign_service.withdrawals_open() is True
+
+
+def test_closed_before_date(monkeypatch):
+    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026-10-01")
+    assert campaign_service.withdrawals_open(dt.date(2026, 9, 30)) is False
+
+
+def test_open_on_and_after_date(monkeypatch):
+    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026-10-01")
+    assert campaign_service.withdrawals_open(dt.date(2026, 10, 1)) is True
+    assert campaign_service.withdrawals_open(dt.date(2026, 10, 2)) is True
+
+
+def test_invalid_date_falls_back_to_open(monkeypatch):
+    """設定ミスで換金を止めるより、開放されている方が実害が小さい"""
+    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026/10/01")
+    assert campaign_service.withdrawals_open() is True
+
+
+def test_withdrawal_blocked_before_open_date(client, session, user, monkeypatch):
+    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2099-01-01")
+    user.points = 1000
+    user.phone = "987654321"
+    session.add(user)
+    session.commit()
+
+    res = client.post("/api/v1/withdrawals", json={"points": 500}, headers=auth(user))
+    assert res.status_code == 403
+    assert res.json()["error"]["code"] == "WITHDRAWALS_NOT_OPEN"
+    # 開放日を文面に含める（曖昧な表現は詐欺の特徴になる）
+    assert "2099-01-01" in res.json()["error"]["message"]
+
+
+def test_withdrawal_allowed_after_open_date(client, session, user, monkeypatch):
+    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2020-01-01")
+    user.points = 1000
+    user.phone = "987654321"
+    session.add(user)
+    session.commit()
+
+    res = client.post("/api/v1/withdrawals", json={"points": 500}, headers=auth(user))
+    assert res.status_code == 201, res.text
+
+
+def test_status_reports_open_date(client, monkeypatch):
+    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026-10-01")
+    body = client.get("/api/v1/campaign/status").json()
+    assert body["withdrawals_open_at"] == "2026-10-01"
+    assert body["withdrawals_open"] is False

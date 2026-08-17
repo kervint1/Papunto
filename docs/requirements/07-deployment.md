@@ -56,6 +56,9 @@ Herokuは buildpack を2段で使い、`server/` だけを切り出している�
 | `APPWRITE_ENDPOINT` | `https://nyc.cloud.appwrite.io/v1` | リージョン不一致で全操作が失敗する |
 | `APPWRITE_PROJECT_ID` / `APPWRITE_API_KEY` / `APPWRITE_BUCKET_ID` | Appwriteの値 | **画像がdyno再起動で消える**（下記） |
 | `MONLIX_POSTBACK_SECRET` | Monlix契約後 | 署名検証をスキップし誰でも付与できる |
+| `CAMPAIGN_SLOT_LIMIT` | `100` | 既定100。枠を増やすときはここだけ変える（デプロイ不要） |
+| `CAMPAIGN_REWARD_POINTS` | `500` | 既定500（= S/ 5。最低換金額と同額） |
+| `WITHDRAWALS_OPEN_AT` | `2026-10-01` | **空だと即座に交換できる。** LPで告知した日付と必ず一致させる |
 
 ### Vercel（web / Root Directory = `web`）
 

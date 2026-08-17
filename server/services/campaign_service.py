@@ -1,0 +1,84 @@
+"""事前登録キャンペーン。
+
+先着順は **登録順（users.id の昇順）** で決まる。Googleログインだけで
+番号が確定するので、電話番号やタスクを求めずに「あなたは37人目です」と
+即座に返せる。摩擦を最小にして登録数を最大化するための設計。
+
+不正の判定は送金の前に行う。電話番号の登録は10/1以降なので、
+同一番号の重複はそこで発覚し、**1円も払う前に除外できる**。
+
+⚠️ 除外条件は事前に具体的に告知すること。ペルーはINDECOPIの消費者保護が
+   効いており、「当社の判断により除外」のような曖昧な条項は不当条項と
+   みなされ得る。実装と告知（LPの注意事項）を必ず一致させる。
+"""
+import datetime as dt
+import logging
+from dataclasses import dataclass
+
+from sqlmodel import Session, func, select
+
+import config
+from models import User
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Slot:
+    """登録者の枠の状態"""
+
+    position: int  # 登録順の番号（1始まり）
+    limit: int
+    within_limit: bool  # 枠内かどうか
+    remaining: int  # 残り枠
+
+
+def position_of(session: Session, user: User) -> int:
+    """登録順の番号。自分より前に作られたユーザー数 + 1。
+
+    users.id は連番なので id で数える。作成日時ではなく id を使うのは、
+    同一秒に複数登録された場合でも順序が一意に決まるため
+    """
+    earlier = session.exec(
+        select(func.count()).select_from(User).where(User.id < user.id)
+    ).one()
+    return int(earlier) + 1
+
+
+def slot_of(session: Session, user: User) -> Slot:
+    position = position_of(session, user)
+    limit = config.CAMPAIGN_SLOT_LIMIT
+    total = int(session.exec(select(func.count()).select_from(User)).one())
+    return Slot(
+        position=position,
+        limit=limit,
+        within_limit=position <= limit,
+        remaining=max(0, limit - total),
+    )
+
+
+def remaining_slots(session: Session) -> int:
+    """LPに出す残り枠。未ログインでも見せられるよう、ユーザー個別の情報を持たない"""
+    total = int(session.exec(select(func.count()).select_from(User)).one())
+    return max(0, config.CAMPAIGN_SLOT_LIMIT - total)
+
+
+def withdrawals_open_at() -> dt.date | None:
+    """換金の開放日。未設定なら None（＝即座に開放）"""
+    raw = config.WITHDRAWALS_OPEN_AT.strip()
+    if not raw:
+        return None
+    try:
+        return dt.date.fromisoformat(raw)
+    except ValueError:
+        # 設定ミスで換金を止めてしまうより、開放されている方がまだ実害が小さい。
+        # ただし気づけるようにログには残す
+        logger.error("WITHDRAWALS_OPEN_AT の形式が不正（YYYY-MM-DD）: %r", raw)
+        return None
+
+
+def withdrawals_open(today: dt.date | None = None) -> bool:
+    opens = withdrawals_open_at()
+    if opens is None:
+        return True
+    return (today or dt.datetime.now(dt.timezone.utc).date()) >= opens
