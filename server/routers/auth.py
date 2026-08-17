@@ -8,6 +8,7 @@ from database import get_session
 from errors import ApiError
 from models import User
 from schemas.auth import LoginRequest, TokenResponse
+from services import campaign_service
 from services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -31,6 +32,12 @@ def login(body: LoginRequest, session: Session = Depends(get_session)):
             avatar_url=info.get("picture"),
         )
         session.add(user)
+        # idを確定させてから報酬を付ける（ログに残すidが要るため）
+        session.flush()
+        # 事前登録キャンペーン。枠が残っていれば登録した時点で付与する。
+        # 交換は WITHDRAWALS_OPEN_AT まで開かないが、残高が増えるのが
+        # 見えないと進んでいる実感がないので、付与自体は即時にする
+        campaign_service.grant_reward(session, user)
     else:
         user.name = info.get("name") or user.name
         user.avatar_url = info.get("picture") or user.avatar_url

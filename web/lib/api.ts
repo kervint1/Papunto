@@ -189,6 +189,34 @@ export interface PhoneStatus {
   phone: string | null;
 }
 
+export interface CampaignStatus {
+  slot_limit: number;
+  remaining: number;
+  reward_points: number;
+  /** ISO日付。nullなら即座に交換できる */
+  withdrawals_open_at: string | null;
+  withdrawals_open: boolean;
+}
+
+/** 認証不要。LPで残り枠を見せるために使う */
+export async function getCampaignStatus(): Promise<CampaignStatus> {
+  const res = await fetch(`${API_URL}/api/v1/campaign/status`);
+  if (!res.ok) throw new ApiError({ code: "UNKNOWN", message: "Error de conexión" });
+  return res.json();
+}
+
+export interface CampaignSlot {
+  position: number;
+  slot_limit: number;
+  within_limit: boolean;
+  remaining: number;
+  phone_registered: boolean;
+}
+
+export function getCampaignSlot(token: string): Promise<CampaignSlot> {
+  return apiFetch<CampaignSlot>("/api/v1/campaign/me", token);
+}
+
 export function getPhone(token: string): Promise<PhoneStatus> {
   return apiFetch<PhoneStatus>("/api/v1/phone", token);
 }

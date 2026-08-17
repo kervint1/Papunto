@@ -63,6 +63,49 @@ def remaining_slots(session: Session) -> int:
     return max(0, config.CAMPAIGN_SLOT_LIMIT - total)
 
 
+def granted_count(session: Session) -> int:
+    """報酬を付与済みの人数。枠の判定はこの数で行う。
+
+    登録者数ではなく付与済み数で数えるのは、キャンペーン開始前に登録した
+    ユーザーが枠を消費しないようにするため
+    """
+    return int(
+        session.exec(
+            select(func.count())
+            .select_from(User)
+            .where(User.campaign_reward_granted_at.is_not(None))
+        ).one()
+    )
+
+
+def grant_reward(session: Session, user: User) -> bool:
+    """枠が残っていれば報酬を付与する。付与したら True。
+
+    ⚠️ 同時登録が重なると枠を数人超えることがある。行ロックで完全に
+       防ぐこともできるが、そうしない理由が2つある。
+
+       1. 交換の開放は10/1で、その前に管理画面で対象を確定させる運用のため、
+          付与時点での厳密さが要らない（超過分は開放前に取り消せる）
+       2. 超過しても数人・数十ソルの話で、ロックによる登録の詰まりの方が損失が大きい
+
+       二重付与だけは確実に防ぐ（campaign_reward_granted_at で判定）。
+    """
+    if user.campaign_reward_granted_at is not None:
+        return False
+    if granted_count(session) >= config.CAMPAIGN_SLOT_LIMIT:
+        return False
+
+    user.points += config.CAMPAIGN_REWARD_POINTS
+    user.campaign_reward_granted_at = dt.datetime.now(dt.timezone.utc)
+    session.add(user)
+    logger.info(
+        "campaign reward granted: user=%s points=%s",
+        user.id,
+        config.CAMPAIGN_REWARD_POINTS,
+    )
+    return True
+
+
 def withdrawals_open_at() -> dt.date | None:
     """換金の開放日。未設定なら None（＝即座に開放）"""
     raw = config.WITHDRAWALS_OPEN_AT.strip()

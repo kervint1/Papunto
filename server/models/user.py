@@ -22,6 +22,9 @@ class User(SQLModel, table=True):
     #    招待機能はこの制約の上でしか成立しない
     phone: Optional[str] = Field(default=None, unique=True, index=True)
     points: int = Field(default=0)  # 所持ポイント（現金額は持たない）
+    # 事前登録キャンペーンの報酬を付与した時刻。
+    # 二重付与を防ぐためと、誰が対象になったかを後から追えるようにするため
+    campaign_reward_granted_at: Optional[datetime] = Field(default=None, index=True)
     # 管理画面の利用可否。昇格は画面から行わずDBクライアントで直接UPDATEする
     # （管理画面が乗っ取られても管理者を増やされないようにするため）
     is_admin: bool = Field(default=False, index=True)

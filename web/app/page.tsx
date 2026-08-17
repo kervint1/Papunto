@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, Banknote, ListChecks, Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { CampaignBadge } from "@/components/CampaignBadge";
 import { Logo } from "@/components/Logo";
 
 const STEPS = [
@@ -39,11 +40,9 @@ export default function LandingPage() {
           <Logo />
           <div className="mt-10 grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
             <div>
-              {/* まだオファーウォールと契約しておらず、実際にはポイントを貯められない。
-                  «Empieza gratis» だけ出すと誤解を招くので、準備中であることを明示する */}
-              <p className="inline-block rounded-full bg-neutral-900 px-3 py-1 text-sm text-white">
-                🚧 En preparación · Aún no hemos lanzado
-              </p>
+              {/* 事前登録の残り枠。希少性が登録の動機になるので最初に見せる。
+                  取得に失敗したら何も出ない（LP自体は成立する） */}
+              <CampaignBadge />
               <p className="mt-2 inline-block rounded-full bg-white/40 px-3 py-1 text-sm text-neutral-800">
                 🇵🇪 Solo en Perú
               </p>
