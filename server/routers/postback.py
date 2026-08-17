@@ -134,8 +134,22 @@ CPALEAD_STATUS_MAP = {
 }
 
 
-@router.api_route("/postback/cpalead", methods=["GET", "POST"], response_class=PlainTextResponse)
-async def cpalead_postback(request: Request, session: Session = Depends(get_session)):
+# GETとPOSTの両方で受ける（CPALeadがどちらで送るか契約後に確定するため）。
+#
+# ⚠️ api_route(methods=["GET","POST"]) だと2つの操作が同じ operationId になり、
+#    OpenAPIからクライアントを生成したときに識別子が衝突する（papunto-nativeのOrval）。
+#    関数名を分けて別々に登録する。
+@router.get("/postback/cpalead", response_class=PlainTextResponse)
+async def cpalead_postback_get(request: Request, session: Session = Depends(get_session)):
+    return await _cpalead_postback(request, session)
+
+
+@router.post("/postback/cpalead", response_class=PlainTextResponse)
+async def cpalead_postback_post(request: Request, session: Session = Depends(get_session)):
+    return await _cpalead_postback(request, session)
+
+
+async def _cpalead_postback(request: Request, session: Session):
     params = await _payload(request)
     remote_ip = _client_ip(request)
 
