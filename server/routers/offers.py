@@ -1,12 +1,16 @@
+import logging
 from typing import NoReturn
 
 from fastapi import APIRouter, Depends
 
+import config
 from dependencies import get_current_user
 from errors import ApiError
 from models import User
 from schemas.offer import OfferList, OfferRead
 from services.cpalead_service import CPALeadError, CPALeadService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/offers", tags=["offers"])
 
@@ -21,6 +25,16 @@ def _raise_cpalead(exc: CPALeadError) -> NoReturn:
 
 @router.get("", response_model=OfferList)
 def list_offers(user: User = Depends(get_current_user)):
+    """案件一覧。
+
+    モックの案件は**管理者にだけ返す**。広告主が存在しない架空の案件なので、
+    一般ユーザーやASPの審査員に見せると「架空の在庫を並べている」ことになる。
+    一方で本番環境での通し確認（クリック→ポストバック→付与）は必要なので、
+    消すのではなく出す相手を絞る
+    """
+    if config.CPALEAD_MOCK and not user.is_admin:
+        return OfferList(offers=[])
+
     # subidはクライアントに指定させず、認証済みユーザーのIDをサーバー側で入れる。
     # 任意のsubidを渡せると他人名義の成果を発生させられるため。
     # あわせてCPALeadのAPIキーもサーバー内に留まる

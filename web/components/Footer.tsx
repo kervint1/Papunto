@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
+import { Instagram } from "lucide-react";
 
+/**
+ * 実在するアカウントだけを並べる。
+ *
+ * ⚠️ リンク先の無いアイコン（href="#"）を置かないこと。
+ *    テンプレートを流用しただけに見え、ASPの審査員が最初に気づく箇所になる。
+ *    アカウントを増やしたらここに足す
+ */
 const SNS = [
-  { icon: Facebook, label: "Facebook" },
-  { icon: Instagram, label: "Instagram" },
-  { icon: Twitter, label: "Twitter" },
-  { icon: Linkedin, label: "LinkedIn" },
+  { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/pandia.pe/" },
 ];
 
 const LEGAL_LINKS = [
@@ -22,10 +26,12 @@ export function Footer() {
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
         {/* SNS icons */}
         <div className="flex items-center gap-3">
-          {SNS.map(({ icon: Icon, label }) => (
+          {SNS.map(({ icon: Icon, label, href }) => (
             <a
               key={label}
-              href="#"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
               aria-label={label}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900 text-white transition-colors hover:bg-neutral-700"
             >
