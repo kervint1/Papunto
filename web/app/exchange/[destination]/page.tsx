@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMe } from "@/hooks/useMe";
+import { PhoneGate } from "@/components/PhoneGate";
 import { ApiError, createWithdrawal } from "@/lib/api";
 import { getDestination } from "@/lib/exchangeDestinations";
 
@@ -30,10 +31,9 @@ export default function ExchangeDestinationPage() {
   const rate = me?.points_per_sol ?? 100;
   const inputPoints = Number(pointsInput) || 0;
   const solesPreview = inputPoints > 0 ? inputPoints / rate : 0;
-  const phoneValid = /^\d{9}$/.test(phone);
   const canWithdraw = points >= minPoints;
-  const canSubmit =
-    !!token && !submitting && canWithdraw && phoneValid && inputPoints > 0;
+  // 電話番号が未登録なら送信させない（サーバー側も PHONE_REQUIRED で弾く）
+  const canSubmit = !!token && !submitting && canWithdraw && !!phone && inputPoints > 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,7 +41,7 @@ export default function ExchangeDestinationPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await createWithdrawal(token, phone, inputPoints);
+      await createWithdrawal(token, inputPoints);
       await refresh();
       router.push("/cuenta");
     } catch (err) {
@@ -130,22 +130,9 @@ export default function ExchangeDestinationPage() {
         <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
           <h3>Datos del canje</h3>
           <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="phone">Número de Yape (9 dígitos)</Label>
-              <Input
-                id="phone"
-                inputMode="numeric"
-                maxLength={9}
-                placeholder="9XXXXXXXX"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-              />
-              {phone.length > 0 && !phoneValid && (
-                <p className="text-xs text-destructive">
-                  Ingresa un número de 9 dígitos.
-                </p>
-              )}
-            </div>
+            {/* 送金先は登録済みの番号を使う。申請ごとの自由入力だと
+                登録と送金先がずれ、一意制約を回避できてしまう */}
+            <PhoneGate token={token} onRegistered={setPhone} />
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="points">

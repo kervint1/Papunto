@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 
 class WithdrawalCreate(BaseModel):
-    yape_phone: str
+    # 送金先は users.phone を使うので受け取らない
     points: int
 
 

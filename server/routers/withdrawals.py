@@ -35,8 +35,13 @@ def create_withdrawal(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not YAPE_PHONE_PATTERN.match(body.yape_phone):
-        raise ApiError(422, "INVALID_PHONE", "Número de Yape inválido (9 dígitos, empieza con 9)")
+    # 送金先は登録済みの番号を使う。申請ごとの自由入力だと
+    # 登録と送金先がずれ、UNIQUE制約を回避できてしまう
+    if not user.phone:
+        raise ApiError(403, "PHONE_REQUIRED", "Registra tu número de Yape para continuar")
+    if not YAPE_PHONE_PATTERN.match(user.phone):
+        # 登録時に検証しているので通常は起きない。データ不整合の検知用
+        raise ApiError(422, "INVALID_PHONE", "El número registrado no es válido")
     if body.points < config.MIN_WITHDRAWAL_POINTS:
         raise ApiError(422, "BELOW_MINIMUM", f"El mínimo es {config.MIN_WITHDRAWAL_POINTS:,} pts")
     if body.points % config.POINTS_PER_SOL != 0:
@@ -62,7 +67,8 @@ def create_withdrawal(
     locked_user.points -= body.points
     withdrawal = Withdrawal(
         user_id=user.id,
-        yape_phone=body.yape_phone,
+        # 申請時点の送金先を記録として残す（後で番号が変わっても履歴は動かさない）
+        yape_phone=user.phone,
         points=body.points,
         amount_soles=Decimal(body.points // config.POINTS_PER_SOL),
     )

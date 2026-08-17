@@ -13,6 +13,7 @@ from routers import (
     complaints,
     me,
     offers,
+    phone,
     postback,
     postbacks,
     posts,
@@ -48,6 +49,7 @@ def health():
 
 app.include_router(auth.router)
 app.include_router(me.router)
+app.include_router(phone.router)
 app.include_router(withdrawals.router)
 app.include_router(postbacks.router)
 app.include_router(postback.router)

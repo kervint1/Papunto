@@ -20,6 +20,8 @@ export interface Me {
   avatar_url: string | null;
   points: number;
   is_admin: boolean;
+  /** 未登録ならタスクと換金ができない */
+  phone_registered: boolean;
   min_withdrawal_points: number;
   points_per_sol: number;
 }
@@ -173,16 +175,29 @@ export async function createComplaint(
   return res.json();
 }
 
-export async function createWithdrawal(
-  token: string,
-  yapePhone: string,
-  points: number
-): Promise<Withdrawal> {
+/** 送金先は登録済みの users.phone を使うので、番号は送らない */
+export async function createWithdrawal(token: string, points: number): Promise<Withdrawal> {
   const w = await apiFetch<Withdrawal>("/api/v1/withdrawals", token, {
     method: "POST",
-    body: JSON.stringify({ yape_phone: yapePhone, points }),
+    body: JSON.stringify({ points }),
   });
   return normalizeWithdrawal(w);
+}
+
+export interface PhoneStatus {
+  registered: boolean;
+  phone: string | null;
+}
+
+export function getPhone(token: string): Promise<PhoneStatus> {
+  return apiFetch<PhoneStatus>("/api/v1/phone", token);
+}
+
+export function registerPhone(token: string, phone: string): Promise<PhoneStatus> {
+  return apiFetch<PhoneStatus>("/api/v1/phone", token, {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
 }
 
 export function detectOperator(
