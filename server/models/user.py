@@ -22,9 +22,16 @@ class User(SQLModel, table=True):
     #    招待機能はこの制約の上でしか成立しない
     phone: Optional[str] = Field(default=None, unique=True, index=True)
     points: int = Field(default=0)  # 所持ポイント（現金額は持たない）
+    # 招待コード。共有リンクに載る文字列なので、口頭やWhatsAppで
+    # 伝え間違えないよう紛らわしい文字（0/O, 1/I/L）を除いた8文字にする。
+    # 初回に /referral/me を叩いた時点で発行する（全員に配らない）
+    referral_code: Optional[str] = Field(default=None, unique=True, index=True)
     # 事前登録キャンペーンの報酬を付与した時刻。
     # 二重付与を防ぐためと、誰が対象になったかを後から追えるようにするため
     campaign_reward_granted_at: Optional[datetime] = Field(default=None, index=True)
+    # 残りの200ptを付与した時刻。タスクを規定数こなすと入る。
+    # 分けて持つのは「登録しただけの人」と「実際に動いた人」を区別するため
+    campaign_bonus_granted_at: Optional[datetime] = Field(default=None, index=True)
     # 管理画面の利用可否。昇格は画面から行わずDBクライアントで直接UPDATEする
     # （管理画面が乗っ取られても管理者を増やされないようにするため）
     is_admin: bool = Field(default=False, index=True)

@@ -18,6 +18,7 @@ from dependencies import get_current_user
 from errors import ApiError
 from models import User
 from schemas.phone import PhoneRegister, PhoneStatus
+from services import referral_service
 
 logger = logging.getLogger(__name__)
 
@@ -71,4 +72,10 @@ def register_phone(
 
     session.refresh(locked)
     logger.info("phone registered: user=%s", locked.id)
+
+    # 交換が開いた後は、電話番号の登録が招待の成立条件になる。
+    # ここで試さないと、条件を満たしても誰も成立させる人がいない
+    if referral_service.settle_for_invitee(session, locked):
+        session.commit()
+
     return PhoneStatus(registered=True, phone=locked.phone)

@@ -15,9 +15,11 @@ from routers import (
     me,
     offers,
     phone,
+    points,
     postback,
     postbacks,
     posts,
+    referral,
     topups,
     uploads,
     withdrawals,
@@ -52,6 +54,8 @@ app.include_router(auth.router)
 app.include_router(campaign.router)
 app.include_router(me.router)
 app.include_router(phone.router)
+app.include_router(points.router)
+app.include_router(referral.router)
 app.include_router(withdrawals.router)
 app.include_router(postbacks.router)
 app.include_router(postback.router)

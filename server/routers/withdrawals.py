@@ -9,7 +9,7 @@ from database import get_session
 from dependencies import get_current_user
 from errors import ApiError
 from models import User, Withdrawal
-from services import campaign_service
+from services import campaign_service, points_service
 from schemas.withdrawal import WithdrawalCreate, WithdrawalList, WithdrawalRead
 
 router = APIRouter(prefix="/api/v1/withdrawals", tags=["withdrawals"])
@@ -85,6 +85,16 @@ def create_withdrawal(
         amount_soles=Decimal(body.points // config.POINTS_PER_SOL),
     )
     session.add(withdrawal)
+    session.flush()  # withdrawal.id を確定させてから台帳に参照を残す
+    points_service.record(
+        session,
+        user=locked_user,
+        points=-body.points,
+        kind="withdrawal",
+        reference_type="withdrawal",
+        reference_id=withdrawal.id,
+        note="Canje por Yape",
+    )
     session.commit()
     session.refresh(withdrawal)
     return WithdrawalRead.model_validate(withdrawal, from_attributes=True)

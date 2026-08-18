@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 import config
 from errors import ApiError
 from models import Postback, PostbackLog, User
+from services import campaign_service, points_service
 from models.postback import (
     STATUS_APPROVED,
     STATUS_PENDING,
@@ -140,6 +141,20 @@ def process_conversion(
         user.points += reward_points
         postback.status = STATUS_APPROVED
         postback.approved_at = now
+        # 台帳へ。未承認（pending）では書かない — まだ残高に入っていないため
+        session.flush()  # postback.id を確定させてから参照する
+        points_service.record(
+            session,
+            user=user,
+            points=reward_points,
+            kind="offer",
+            reference_type="postback",
+            reference_id=postback.id,
+            note=campaign_name or postback.campaign_name,
+        )
+        # 成果が承認されたこの瞬間が、キャンペーンのボーナス条件を
+        # 満たしうる唯一のタイミング。ここで試さないと誰も付与しない
+        campaign_service.try_grant_bonus(session, user)
     elif status == STATUS_REJECTED:
         postback.status = STATUS_REJECTED
         postback.rejected_at = now

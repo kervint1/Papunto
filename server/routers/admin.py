@@ -46,7 +46,7 @@ from schemas.admin import (
     WithdrawalActionBody,
 )
 from schemas.offer import OfferList, OfferRead
-from services import admin_service, campaign_service
+from services import admin_service, campaign_service, points_service
 from services.cpalead_service import CPALeadError, CPALeadService
 
 # 依存をルーター単位で付ける。個別のエンドポイントで書き忘れても認可が外れないようにする
@@ -146,8 +146,12 @@ def _campaign_settings_read(session: Session, setting: CampaignSetting) -> Admin
         email = admin_user.email if admin_user else None
     return AdminCampaignSettings(
         slot_limit=setting.slot_limit,
-        reward_points=setting.reward_points,
+        reward_points_initial=setting.reward_points_initial,
+        reward_points_bonus=setting.reward_points_bonus,
+        bonus_required_tasks=setting.bonus_required_tasks,
         withdrawals_open_at=setting.withdrawals_open_at,
+        referral_reward_points=setting.referral_reward_points,
+        referral_max_per_user=setting.referral_max_per_user,
         updated_at=setting.updated_at,
         updated_by_email=email,
         granted_count=campaign_service.granted_count(session),
@@ -196,14 +200,22 @@ def update_campaign_settings(
 
     before = {
         "slot_limit": setting.slot_limit,
-        "reward_points": setting.reward_points,
+        "reward_points_initial": setting.reward_points_initial,
+        "reward_points_bonus": setting.reward_points_bonus,
+        "bonus_required_tasks": setting.bonus_required_tasks,
         "withdrawals_open_at": (
             setting.withdrawals_open_at.isoformat() if setting.withdrawals_open_at else None
         ),
+        "referral_reward_points": setting.referral_reward_points,
+        "referral_max_per_user": setting.referral_max_per_user,
     }
     setting.slot_limit = body.slot_limit
-    setting.reward_points = body.reward_points
+    setting.reward_points_initial = body.reward_points_initial
+    setting.reward_points_bonus = body.reward_points_bonus
+    setting.bonus_required_tasks = body.bonus_required_tasks
     setting.withdrawals_open_at = body.withdrawals_open_at
+    setting.referral_reward_points = body.referral_reward_points
+    setting.referral_max_per_user = body.referral_max_per_user
     setting.updated_at = datetime.now(timezone.utc)
     setting.updated_by_user_id = admin.id
     session.add(setting)
@@ -218,10 +230,14 @@ def update_campaign_settings(
             "before": before,
             "after": {
                 "slot_limit": body.slot_limit,
-                "reward_points": body.reward_points,
+                "reward_points_initial": body.reward_points_initial,
+                "reward_points_bonus": body.reward_points_bonus,
+                "bonus_required_tasks": body.bonus_required_tasks,
                 "withdrawals_open_at": (
                     body.withdrawals_open_at.isoformat() if body.withdrawals_open_at else None
                 ),
+                "referral_reward_points": body.referral_reward_points,
+                "referral_max_per_user": body.referral_max_per_user,
             },
         },
     )
@@ -370,6 +386,15 @@ def reject_withdrawal(
         raise ApiError(404, "USER_NOT_FOUND", "Usuario no encontrado")
 
     user.points += withdrawal.points
+    points_service.record(
+        session,
+        user=user,
+        points=withdrawal.points,
+        kind="refund",
+        reference_type="withdrawal",
+        reference_id=withdrawal.id,
+        note="Devolución por canje rechazado",
+    )
     withdrawal.status = "rejected"
     withdrawal.updated_at = datetime.now(timezone.utc)
     admin_service.log_action(

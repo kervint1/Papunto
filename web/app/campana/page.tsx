@@ -3,6 +3,60 @@ import Link from "next/link";
 
 import { LegalHeading as Heading, LegalLayout } from "@/components/LegalLayout";
 
+/**
+ * 規約に出す金額は**設定の実値**を読む。
+ *
+ * ⚠️ ここを固定文字にすると、管理画面で報酬を変えたときに規約だけ古い数字が
+ *    残る。ペルーはINDECOPIの消費者保護が効いており、告知と実装の不一致は
+ *    そのまま不当表示になる。
+ *
+ * APIが落ちているときは既定値で描く。規約ページ自体が500になる方が実害が
+ * 大きいため。既定値は models/campaign_setting.py と揃えること。
+ */
+const FALLBACK = {
+  initial: 300,
+  bonus: 200,
+  tasks: 1,
+  opensAt: "2026-10-01",
+  referral: 200,
+  referralMax: 20,
+};
+
+async function loadTerms() {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/campaign/status`,
+      { next: { revalidate: 300 } }
+    );
+    if (!res.ok) return FALLBACK;
+    const d = await res.json();
+    return {
+      initial: d.reward_points_initial,
+      bonus: d.reward_points_bonus,
+      tasks: d.bonus_required_tasks,
+      opensAt: d.withdrawals_open_at ?? FALLBACK.opensAt,
+      referral: d.referral_reward_points ?? FALLBACK.referral,
+      referralMax: d.referral_max_per_user ?? FALLBACK.referralMax,
+    };
+  } catch {
+    return FALLBACK;
+  }
+}
+
+function soles(points: number) {
+  return (points / 100).toFixed(2);
+}
+
+function longDate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-PE", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export const metadata: Metadata = {
   title: "Bases de la campaña de pre-registro",
   description:
@@ -25,7 +79,9 @@ export const metadata: Metadata = {
  * ⚠️ 開放日はサーバーの WITHDRAWALS_OPEN_AT と揃える。ずれると
  *    「書いてある日に交換できない」という最悪の形になる。
  */
-export default function CampanaPage() {
+export default async function CampanaPage() {
+  const t = await loadTerms();
+
   return (
     <LegalLayout
       title="Bases de la campaña de pre-registro"
@@ -64,18 +120,74 @@ export default function CampanaPage() {
 
       <Heading>Recompensa</Heading>
       <p className="mt-3">
-        Cada participante dentro de los cupos recibe 500 puntos
-        (equivalentes a S/ 5.00), acreditados en su cuenta al momento del
-        registro.
+        La recompensa se entrega en dos partes:
+      </p>
+      <ul className="mt-3 list-disc space-y-2 pl-5">
+        <li>
+          <strong className="font-semibold text-neutral-900">
+            {t.initial} puntos (S/ {soles(t.initial)})
+          </strong>{" "}
+          acreditados al momento del registro.
+        </li>
+        <li>
+          <strong className="font-semibold text-neutral-900">
+            {t.bonus} puntos (S/ {soles(t.bonus)})
+          </strong>{" "}
+          adicionales al completar {t.tasks}{" "}
+          {t.tasks === 1 ? "tarea" : "tareas"} en la plataforma. Se cuentan
+          las tareas cuyo cumplimiento haya sido confirmado por el
+          anunciante.
+        </li>
+      </ul>
+      <p className="mt-3">
+        Los {t.initial} puntos iniciales por sí solos no alcanzan el mínimo
+        requerido para canjear. Las tareas estarán disponibles a partir del{" "}
+        {longDate(t.opensAt)}.
       </p>
       <p className="mt-3">
         Los puntos no son dinero ni instrumento financiero. Se convierten a
         Soles únicamente mediante el Canje, según los Términos de Uso.
       </p>
 
+      <Heading>Campaña de invitación</Heading>
+      <p className="mt-3">
+        Cada cuenta recibe un código de invitación. Si una persona crea su
+        cuenta usando tu código, recibes{" "}
+        <strong className="font-semibold text-neutral-900">
+          {t.referral} puntos (S/ {soles(t.referral)})
+        </strong>
+        .
+      </p>
+      <p className="mt-3">
+        Condiciones:
+      </p>
+      <ul className="mt-3 list-disc space-y-2 pl-5">
+        <li>
+          Cada persona puede usar un código de invitación una sola vez, al
+          crear su cuenta. No se puede aplicar después ni cambiarlo.
+        </li>
+        <li>No puedes usar tu propio código.</li>
+        <li>
+          El máximo de invitaciones premiadas por cuenta es de{" "}
+          {t.referralMax}.
+        </li>
+        <li>
+          A partir del {longDate(t.opensAt)}, el premio se entrega cuando la
+          persona invitada registra su número de celular.
+        </li>
+      </ul>
+      {/* 期間限定であることを明示する。後で金額を下げるときに
+          「話が違う」にならないようにするため。すでに確定した分は
+          台帳に金額が残るので変更の影響を受けない */}
+      <p className="mt-3">
+        Este monto corresponde a una campaña y puede cambiar o terminar más
+        adelante. Las invitaciones ya confirmadas conservan el premio con el
+        que se confirmaron.
+      </p>
+
       <Heading>Cuándo puedes canjear</Heading>
       <p className="mt-3">
-        El canje estará disponible a partir del 1 de octubre de 2026. Antes
+        El canje estará disponible a partir del {longDate(t.opensAt)}. Antes
         de esa fecha los puntos se acumulan en tu cuenta, pero no pueden
         convertirse a Soles.
       </p>

@@ -22,7 +22,11 @@ export default function AdminCampaign() {
   const [data, setData] = useState<AdminCampaignSettings | null>(null);
   const [slotLimit, setSlotLimit] = useState("");
   const [rewardPoints, setRewardPoints] = useState("");
+  const [bonusPoints, setBonusPoints] = useState("");
+  const [bonusTasks, setBonusTasks] = useState("");
   const [openAt, setOpenAt] = useState("");
+  const [referralPoints, setReferralPoints] = useState("");
+  const [referralMax, setReferralMax] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -30,8 +34,12 @@ export default function AdminCampaign() {
   const apply = useCallback((s: AdminCampaignSettings) => {
     setData(s);
     setSlotLimit(String(s.slot_limit));
-    setRewardPoints(String(s.reward_points));
+    setRewardPoints(String(s.reward_points_initial));
+    setBonusPoints(String(s.reward_points_bonus));
+    setBonusTasks(String(s.bonus_required_tasks));
     setOpenAt(s.withdrawals_open_at ?? "");
+    setReferralPoints(String(s.referral_reward_points));
+    setReferralMax(String(s.referral_max_per_user));
   }, []);
 
   useEffect(() => {
@@ -47,8 +55,12 @@ export default function AdminCampaign() {
     try {
       const next = await updateCampaignSettings(token, {
         slot_limit: Number(slotLimit),
-        reward_points: Number(rewardPoints),
+        reward_points_initial: Number(rewardPoints),
+        reward_points_bonus: Number(bonusPoints),
+        bonus_required_tasks: Number(bonusTasks),
         withdrawals_open_at: openAt || null,
+        referral_reward_points: Number(referralPoints),
+        referral_max_per_user: Number(referralMax),
         confirm_open_now: confirmOpenNow,
       });
       apply(next);
@@ -78,8 +90,12 @@ export default function AdminCampaign() {
 
   const dirty =
     Number(slotLimit) !== data.slot_limit ||
-    Number(rewardPoints) !== data.reward_points ||
-    (openAt || null) !== data.withdrawals_open_at;
+    Number(rewardPoints) !== data.reward_points_initial ||
+    Number(bonusPoints) !== data.reward_points_bonus ||
+    Number(bonusTasks) !== data.bonus_required_tasks ||
+    (openAt || null) !== data.withdrawals_open_at ||
+    Number(referralPoints) !== data.referral_reward_points ||
+    Number(referralMax) !== data.referral_max_per_user;
 
   return (
     <>
@@ -124,7 +140,7 @@ export default function AdminCampaign() {
           </label>
 
           <label className="block">
-            <span className="text-sm text-neutral-700">Premio por registro (pts)</span>
+            <span className="text-sm text-neutral-700">Premio al registrarse (pts)</span>
             <input
               type="number"
               min={0}
@@ -133,7 +149,38 @@ export default function AdminCampaign() {
               className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             />
             <span className="mt-1 block text-xs text-neutral-500">
-              Solo afecta a los registros futuros. 100 pts = S/ 1.
+              {/* 300ptは最低交換額に届かない。これが意図した設計なので、
+                  上げすぎると「登録して即引き出して離脱」に戻る */}
+              Debe quedar por debajo del mínimo para canjear, si no podrán
+              retirar sin hacer ninguna tarea. Solo afecta a registros futuros.
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="text-sm text-neutral-700">Premio extra por tareas (pts)</span>
+            <input
+              type="number"
+              min={0}
+              value={bonusPoints}
+              onChange={(e) => setBonusPoints(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <span className="mt-1 block text-xs text-neutral-500">
+              Se paga al completar las tareas indicadas abajo.
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="text-sm text-neutral-700">Tareas necesarias para el extra</span>
+            <input
+              type="number"
+              min={1}
+              value={bonusTasks}
+              onChange={(e) => setBonusTasks(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <span className="mt-1 block text-xs text-neutral-500">
+              Se cuentan solo las conversiones aprobadas por el anunciante.
             </span>
           </label>
 
@@ -150,6 +197,39 @@ export default function AdminCampaign() {
               en la landing.
             </span>
           </label>
+        </div>
+
+        <div className="mt-6 border-t border-neutral-100 pt-6">
+          <p className="mb-4 text-sm text-neutral-700">Invitaciones</p>
+          <div className="grid gap-5 sm:max-w-md">
+            <label className="block">
+              <span className="text-sm text-neutral-700">Premio por invitación (pts)</span>
+              <input
+                type="number"
+                min={0}
+                value={referralPoints}
+                onChange={(e) => setReferralPoints(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+              <span className="mt-1 block text-xs text-neutral-500">
+                Se paga a quien invita. Solo afecta a las invitaciones futuras.
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm text-neutral-700">Máximo de invitaciones por usuario</span>
+              <input
+                type="number"
+                min={1}
+                value={referralMax}
+                onChange={(e) => setReferralMax(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+              <span className="mt-1 block text-xs text-neutral-500">
+                Límite contra el autofraude. Sin tope, el daño no tiene techo.
+              </span>
+            </label>
+          </div>
         </div>
 
         {error === "CONFIRM_OPEN_NOW" ? (

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AdminFab } from "@/components/AdminFab";
+import { ReferralClaimer } from "@/components/ReferralClaimer";
 import { Footer } from "@/components/Footer";
 import { LANG, LOCALE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { Providers } from "./providers";
@@ -84,6 +85,8 @@ export default function RootLayout({
           <div className="flex-1">{children}</div>
           <Footer />
           <AdminFab />
+          {/* LPで受け取った招待コードをログイン後に適用する。画面は持たない */}
+          <ReferralClaimer />
         </Providers>
       </body>
     </html>

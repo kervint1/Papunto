@@ -255,7 +255,7 @@ def test_campaign_settings_requires_admin(client, user):
     res = client.put(
         "/api/v1/admin/campaign-settings",
         headers=auth(user),
-        json={"slot_limit": 200, "reward_points": 500, "withdrawals_open_at": "2026-10-01"},
+        json={"slot_limit": 200, "reward_points_initial": 500, "reward_points_bonus": 200, "bonus_required_tasks": 1, "withdrawals_open_at": "2026-10-01", "referral_reward_points": 200, "referral_max_per_user": 20},
     )
     assert res.status_code in (401, 403)
 
@@ -264,19 +264,19 @@ def test_campaign_settings_update(client, session, admin):
     res = client.put(
         "/api/v1/admin/campaign-settings",
         headers=auth(admin),
-        json={"slot_limit": 200, "reward_points": 700, "withdrawals_open_at": "2026-11-15"},
+        json={"slot_limit": 200, "reward_points_initial": 700, "reward_points_bonus": 200, "bonus_required_tasks": 1, "withdrawals_open_at": "2026-11-15", "referral_reward_points": 200, "referral_max_per_user": 20},
     )
     assert res.status_code == 200
     body = res.json()
     assert body["slot_limit"] == 200
-    assert body["reward_points"] == 700
+    assert body["reward_points_initial"] == 700
     assert body["withdrawals_open_at"] == "2026-11-15"
     assert body["updated_by_email"] == "admin@example.com"
 
     # 公開APIにも即座に反映される（再起動を要さないのがこの機能の目的）
     public = client.get("/api/v1/campaign/status").json()
     assert public["slot_limit"] == 200
-    assert public["reward_points"] == 700
+    assert public["reward_points_initial"] == 700
     assert public["withdrawals_open_at"] == "2026-11-15"
 
 
@@ -285,7 +285,7 @@ def test_campaign_settings_change_is_logged(client, session, admin):
     client.put(
         "/api/v1/admin/campaign-settings",
         headers=auth(admin),
-        json={"slot_limit": 150, "reward_points": 500, "withdrawals_open_at": "2026-10-01"},
+        json={"slot_limit": 150, "reward_points_initial": 500, "reward_points_bonus": 200, "bonus_required_tasks": 1, "withdrawals_open_at": "2026-10-01", "referral_reward_points": 200, "referral_max_per_user": 20},
     )
     log = session.exec(
         select(AdminLog).where(AdminLog.action == "campaign_settings.update")
@@ -300,7 +300,7 @@ def test_campaign_settings_open_now_needs_confirmation(client, admin):
     res = client.put(
         "/api/v1/admin/campaign-settings",
         headers=auth(admin),
-        json={"slot_limit": 100, "reward_points": 500, "withdrawals_open_at": None},
+        json={"slot_limit": 100, "reward_points_initial": 500, "reward_points_bonus": 200, "bonus_required_tasks": 1, "withdrawals_open_at": None, "referral_reward_points": 200, "referral_max_per_user": 20},
     )
     assert res.status_code == 400
     assert res.json()["error"]["code"] == "CONFIRM_OPEN_NOW_REQUIRED"
@@ -310,8 +310,12 @@ def test_campaign_settings_open_now_needs_confirmation(client, admin):
         headers=auth(admin),
         json={
             "slot_limit": 100,
-            "reward_points": 500,
+            "reward_points_initial": 500,
+            "reward_points_bonus": 200,
+            "bonus_required_tasks": 1,
             "withdrawals_open_at": None,
+            "referral_reward_points": 200,
+            "referral_max_per_user": 20,
             "confirm_open_now": True,
         },
     )
@@ -338,7 +342,7 @@ def test_campaign_settings_cannot_go_below_granted(client, session, admin):
     res = client.put(
         "/api/v1/admin/campaign-settings",
         headers=auth(admin),
-        json={"slot_limit": 2, "reward_points": 500, "withdrawals_open_at": "2026-10-01"},
+        json={"slot_limit": 2, "reward_points_initial": 500, "reward_points_bonus": 200, "bonus_required_tasks": 1, "withdrawals_open_at": "2026-10-01", "referral_reward_points": 200, "referral_max_per_user": 20},
     )
     assert res.status_code == 400
     assert res.json()["error"]["code"] == "SLOT_LIMIT_BELOW_GRANTED"

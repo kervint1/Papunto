@@ -192,7 +192,13 @@ export interface PhoneStatus {
 export interface CampaignStatus {
   slot_limit: number;
   remaining: number;
-  reward_points: number;
+  /** 登録時に入る分 */
+  reward_points_initial: number;
+  /** タスクをこなすと入る残り */
+  reward_points_bonus: number;
+  bonus_required_tasks: number;
+  referral_reward_points: number;
+  referral_max_per_user: number;
   /** ISO日付。nullなら即座に交換できる */
   withdrawals_open_at: string | null;
   withdrawals_open: boolean;
@@ -213,8 +219,12 @@ export interface CampaignSlot {
   phone_registered: boolean;
   /** ⚠️ within_limit ではなく実際に付与されたか。文言はこちらを見る */
   reward_granted: boolean;
-  /** 付与された額。0なら未付与 */
+  /** 登録時に付与された額。0なら未付与 */
   reward_points: number;
+  bonus_granted: boolean;
+  bonus_points: number;
+  tasks_completed: number;
+  bonus_required_tasks: number;
 }
 
 export function getCampaignSlot(token: string): Promise<CampaignSlot> {
@@ -615,9 +625,13 @@ export function cleanupUnusedImages(
 
 export interface AdminCampaignSettings {
   slot_limit: number;
-  reward_points: number;
+  reward_points_initial: number;
   /** ISO日付。null は「即座に開放」 */
   withdrawals_open_at: string | null;
+  reward_points_bonus: number;
+  bonus_required_tasks: number;
+  referral_reward_points: number;
+  referral_max_per_user: number;
   updated_at: string | null;
   updated_by_email: string | null;
   /** 付与済みの人数。枠を下げられる下限になる */
@@ -633,8 +647,12 @@ export function updateCampaignSettings(
   token: string,
   body: {
     slot_limit: number;
-    reward_points: number;
+    reward_points_initial: number;
     withdrawals_open_at: string | null;
+    reward_points_bonus: number;
+    bonus_required_tasks: number;
+    referral_reward_points: number;
+    referral_max_per_user: number;
     confirm_open_now?: boolean;
   }
 ): Promise<AdminCampaignSettings> {
@@ -642,4 +660,69 @@ export function updateCampaignSettings(
     method: "PUT",
     body: JSON.stringify(body),
   });
+}
+
+export interface ReferralMe {
+  code: string;
+  /** そのままWhatsAppに貼れる共有URL */
+  share_url: string;
+  /** 1件成立あたりの報酬 */
+  reward_points: number;
+  total: number;
+  settled: number;
+  earned_points: number;
+  max_per_user: number;
+  /** 事前登録中は「登録した時点」で成立する。文言の出し分けに使う */
+  settles_on_registration: boolean;
+  /** 自分を招待した人の名前。未招待なら null */
+  invited_by: string | null;
+  /** コードを手入力できる状態か */
+  can_claim: boolean;
+}
+
+export function getReferral(token: string): Promise<ReferralMe> {
+  return apiFetch<ReferralMe>("/api/v1/referral", token);
+}
+
+export function claimReferral(
+  token: string,
+  code: string
+): Promise<{ claimed: boolean; inviter_name: string | null }> {
+  return apiFetch("/api/v1/referral/claim", token, {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export interface ReferralCheck {
+  valid: boolean;
+  /** 下の名前のみ。誰でも叩ける経路なのでフルネームは返らない */
+  inviter_name: string | null;
+}
+
+/** 認証不要。ログイン前にコードを確かめるために使う */
+export async function checkReferralCode(code: string): Promise<ReferralCheck> {
+  const res = await fetch(
+    `${API_URL}/api/v1/referral/check?code=${encodeURIComponent(code)}`
+  );
+  if (!res.ok) throw new ApiError({ code: "UNKNOWN", message: "Error de conexión" });
+  return res.json();
+}
+
+export interface PointTransaction {
+  id: number;
+  /** 符号つき。獲得は正、消費は負 */
+  points: number;
+  /** campaign | referral | offer | withdrawal | topup | refund | adjustment */
+  kind: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export function getPointHistory(
+  token: string
+): Promise<{ transactions: PointTransaction[]; ledger_total: number }> {
+  return apiFetch("/api/v1/points", token);
 }

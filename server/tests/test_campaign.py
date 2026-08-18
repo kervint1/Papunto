@@ -70,16 +70,29 @@ def test_status_is_public(client, session):
 
 
 def test_remaining_decreases(client, session, user):
-    set_campaign(session, slot_limit=5)
-    assert client.get("/api/v1/campaign/status").json()["remaining"] == 4  # userが1人いる
+    """残り枠は**付与済み件数**で減る。登録者数ではない。
 
-    make_users(session, 3)
+    付与を取り消したときに枠が戻るようにするため。登録者数で数えると、
+    不正を見つけて取り消しても表示が戻らず、枠を回収できない
+    """
+    set_campaign(session, slot_limit=5)
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 5
+
+    campaign_service.grant_reward(session, user)
+    session.commit()
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 4
+
+    for u in make_users(session, 3):
+        campaign_service.grant_reward(session, u)
+    session.commit()
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 1
 
 
 def test_remaining_never_negative(client, session):
     set_campaign(session, slot_limit=2)
-    make_users(session, 5)
+    for u in make_users(session, 5):
+        campaign_service.grant_reward(session, u)
+    session.commit()
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 0
 
 
@@ -160,4 +173,6 @@ def test_slot_reports_reward_granted(client, session, user):
 
     body = client.get("/api/v1/campaign/me", headers=auth(user)).json()
     assert body["reward_granted"] is True
-    assert body["reward_points"] == 500
+    assert body["reward_points"] == 300  # 登録時に入るのは初回分だけ
+    assert body["bonus_granted"] is False
+    assert body["bonus_points"] == 0

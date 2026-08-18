@@ -70,7 +70,15 @@ def campaign_setting(session: Session):
     キャンペーンの日付と関係がないため。開放日そのものを見るテストは
     set_campaign() で上書きする
     """
-    setting = CampaignSetting(id=1, slot_limit=100, reward_points=500, withdrawals_open_at=None)
+    setting = CampaignSetting(
+        id=1,
+        slot_limit=100,
+        # 報酬は2段。300は最低交換額に届かず、タスク1件で残り200が入る
+        reward_points_initial=300,
+        reward_points_bonus=200,
+        bonus_required_tasks=1,
+        withdrawals_open_at=None,
+    )
     session.add(setting)
     session.commit()
     session.refresh(setting)

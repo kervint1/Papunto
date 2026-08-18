@@ -168,8 +168,12 @@ class AdminCampaignSettings(BaseModel):
     """事前登録キャンペーンの設定（管理画面で編集する）"""
 
     slot_limit: int
-    reward_points: int
+    reward_points_initial: int
+    reward_points_bonus: int
+    bonus_required_tasks: int
     withdrawals_open_at: Optional[date] = None  # NULL は即座に開放
+    referral_reward_points: int
+    referral_max_per_user: int
     updated_at: Optional[datetime] = None
     updated_by_email: Optional[str] = None
 
@@ -182,8 +186,13 @@ class AdminCampaignSettingsUpdate(BaseModel):
     # 枠を付与済み人数より小さくすると残り枠が0のまま止まるので、
     # 下限は1にしておき、実際の整合はルーター側で見る
     slot_limit: int = Field(ge=1, le=100000)
-    reward_points: int = Field(ge=0, le=100000)
+    reward_points_initial: int = Field(ge=0, le=100000)
+    reward_points_bonus: int = Field(ge=0, le=100000)
+    # 0にすると誰もボーナスを取れなくなるので下限を1にする
+    bonus_required_tasks: int = Field(ge=1, le=100)
     withdrawals_open_at: Optional[date] = None
+    referral_reward_points: int = Field(ge=0, le=100000)
+    referral_max_per_user: int = Field(ge=1, le=10000)
     # 開放日を空にする（＝即座に開放する）ときだけ必須。
     # 事前登録中に誤って開放するのを一段止める
     confirm_open_now: bool = False

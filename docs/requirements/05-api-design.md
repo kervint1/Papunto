@@ -35,6 +35,12 @@
 | GET | `/api/v1/withdrawals` | 自前JWT | 自分の換金申請履歴の取得 |
 | POST | `/api/v1/withdrawals` | 自前JWT | 換金申請の作成 |
 | GET | `/api/v1/offers` | 自前JWT | 案件一覧の取得（CPALead。subidはサーバー側で自分のIDを入れる） |
+| GET | `/api/v1/phone` | 自前JWT | 電話番号の登録状況 |
+| POST | `/api/v1/phone` | 自前JWT | 電話番号の登録（変更不可。招待の第2段階の成立条件） |
+| GET | `/api/v1/campaign/status` | **なし** | 残り枠・報酬・交換の開放日（LPに出すため認証を求めない） |
+| GET | `/api/v1/campaign/me` | 自前JWT | 自分の登録順の番号と付与状況 |
+| GET | `/api/v1/referral` | 自前JWT | 自分の招待コード・共有URL・成立件数（初回に発行） |
+| POST | `/api/v1/referral/claim` | 自前JWT | 招待コードの適用。LPで受け取った `?ref=` をログイン後に送る |
 | GET/POST | `/api/v1/admin/*` | 自前JWT＋`is_admin` | 管理画面用。ルーター単位で `require_admin` を付け、個別に書かせない |
 | GET | `/postback/monlix` | Postbackシークレット | Monlixからの成果通知受信 |
 | GET / POST | `/postback/cpalead` | 送信元IP＋Postbackシークレット | CPALeadからの成果通知受信 |

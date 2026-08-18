@@ -12,29 +12,54 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMe } from "@/hooks/useMe";
 import {
+  getPointHistory,
   getPostbacks,
   getTopUps,
   getWithdrawals,
+  type PointTransaction,
   type Postback,
   type TopUp,
   type Withdrawal,
 } from "@/lib/api";
 
-// ポイント明細の絞り込み。成果の3状態にそのまま対応する
+// ポイント明細の絞り込み。
+//
+// 「確定」は**台帳（point_transactions）**から来る。キャンペーン報酬・招待報酬・
+// 案件の成果を同じ形で扱うため。「審査中」「却下」は残高に入っていないので
+// 台帳には無く、postbacks から拾う
 const FILTERS = [
   { id: "all", label: "Todos" },
+  { id: "confirmed", label: "Confirmados" },
   { id: "pending", label: "En revisión" },
-  { id: "approved", label: "Aprobados" },
   { id: "rejected", label: "Rechazados" },
 ] as const;
 
 type FilterId = (typeof FILTERS)[number]["id"];
 
-function PostbackStatusBadge({ status }: { status: Postback["status"] }) {
-  if (status === "approved") {
-    return <Badge className="bg-green-100 text-green-700">Aprobado</Badge>;
+/** 明細1行。台詞は出どころが違っても同じ形にそろえる */
+type Movement = {
+  key: string;
+  points: number;
+  label: string;
+  createdAt: string;
+  state: "confirmed" | "pending" | "rejected";
+};
+
+// 台帳のkindを画面の言葉にする。noteがあればそちらを優先する
+const KIND_LABEL: Record<string, string> = {
+  campaign: "Bono de pre-registro",
+  referral: "Invitación",
+  offer: "Tarea completada",
+  refund: "Devolución",
+  adjustment: "Ajuste",
+};
+
+/** 明細の状態。「確定」は残高に入っている＝台帳にある、という意味 */
+function MovementStateBadge({ state }: { state: Movement["state"] }) {
+  if (state === "confirmed") {
+    return <Badge className="bg-green-100 text-green-700">En tu saldo</Badge>;
   }
-  if (status === "rejected") {
+  if (state === "rejected") {
     return <Badge className="bg-red-100 text-red-700">Rechazado</Badge>;
   }
   return <Badge className="bg-amber-100 text-amber-700">En revisión</Badge>;
@@ -93,6 +118,7 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 export default function CuentaPage() {
   const { me, token } = useMe();
   const [postbacks, setPostbacks] = useState<Postback[]>([]);
+  const [ledger, setLedger] = useState<PointTransaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [topups, setTopups] = useState<TopUp[]>([]);
   const [filter, setFilter] = useState<FilterId>("all");
@@ -101,8 +127,14 @@ export default function CuentaPage() {
 
   useEffect(() => {
     if (!token) return;
-    Promise.all([getPostbacks(token), getWithdrawals(token), getTopUps(token)])
-      .then(([p, w, t]) => {
+    Promise.all([
+      getPointHistory(token),
+      getPostbacks(token),
+      getWithdrawals(token),
+      getTopUps(token),
+    ])
+      .then(([l, p, w, t]) => {
+        setLedger(l.transactions);
         setPostbacks(p.postbacks);
         setWithdrawals(w.withdrawals);
         setTopups(t.topups);
@@ -126,18 +158,48 @@ export default function CuentaPage() {
     [postbacks]
   );
 
+  // 獲得の明細。**台帳が主**で、そこに残高未反映のものを足す。
+  //
+  // 承認済みの成果は台帳に offer として入っているので、postbacks からは
+  // 拾わない（拾うと二重に出る）
+  const movements = useMemo<Movement[]>(() => {
+    const fromLedger: Movement[] = ledger
+      .filter((t) => t.points > 0)
+      .map((t) => ({
+        key: `l${t.id}`,
+        points: t.points,
+        label: t.note || KIND_LABEL[t.kind] || "Movimiento",
+        createdAt: t.created_at,
+        state: "confirmed" as const,
+      }));
+
+    const fromPostbacks: Movement[] = postbacks
+      .filter((p) => p.status !== "approved")
+      .map((p) => ({
+        key: `p${p.id}`,
+        points: p.reward_points,
+        label: p.campaign_name || "Tarea completada",
+        createdAt: p.created_at,
+        state: p.status === "rejected" ? ("rejected" as const) : ("pending" as const),
+      }));
+
+    return [...fromLedger, ...fromPostbacks].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt)
+    );
+  }, [ledger, postbacks]);
+
   // 履歴に存在する月だけをタブに出す（新しい順）
   const months = useMemo(() => {
-    const keys = Array.from(new Set(postbacks.map((p) => p.created_at.slice(0, 7))));
+    const keys = Array.from(new Set(movements.map((m) => m.createdAt.slice(0, 7))));
     return keys.sort().reverse();
-  }, [postbacks]);
+  }, [movements]);
 
-  const filteredPostbacks = useMemo(
+  const filteredMovements = useMemo(
     () =>
-      postbacks
-        .filter((p) => filter === "all" || p.status === filter)
-        .filter((p) => month === "all" || p.created_at.slice(0, 7) === month),
-    [postbacks, filter, month]
+      movements
+        .filter((m) => filter === "all" || m.state === filter)
+        .filter((m) => month === "all" || m.createdAt.slice(0, 7) === month),
+    [movements, filter, month]
   );
 
   const memberNumber = me ? String(me.id).padStart(8, "0") : "";
@@ -267,24 +329,23 @@ export default function CuentaPage() {
               )}
 
               <div className="mt-3 flex flex-col gap-2">
-                {filteredPostbacks.length === 0 ? (
+                {filteredMovements.length === 0 ? (
                   <EmptyRow>No hay movimientos en esta vista.</EmptyRow>
                 ) : (
-                  filteredPostbacks.map((p) => (
+                  filteredMovements.map((m) => (
                     <div
-                      key={p.id}
+                      key={m.key}
                       className="flex items-center justify-between rounded-xl bg-white p-4"
                     >
                       <div className="min-w-0">
                         <div className="tabular-nums text-neutral-900">
-                          +{p.reward_points.toLocaleString("es-PE")} pts
+                          +{m.points.toLocaleString("es-PE")} pts
                         </div>
                         <div className="truncate text-xs text-neutral-400">
-                          {new Date(p.created_at).toLocaleDateString("es-PE")}
-                          {p.campaign_name ? ` · ${p.campaign_name}` : ""}
+                          {new Date(m.createdAt).toLocaleDateString("es-PE")} · {m.label}
                         </div>
                       </div>
-                      <PostbackStatusBadge status={p.status} />
+                      <MovementStateBadge state={m.state} />
                     </div>
                   ))
                 )}

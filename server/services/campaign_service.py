@@ -4,6 +4,11 @@
 番号が確定するので、電話番号やタスクを求めずに「あなたは37人目です」と
 即座に返せる。摩擦を最小にして登録数を最大化するための設計。
 
+報酬は**2段に分けて**渡す。登録時に300pt、タスクを規定数こなしたら残り200pt。
+一度に500pt渡すと、交換の開放日に引き出して終わりになる。300ptは最低交換額
+（500pt）に届かないので、タスクを1件こなさないと1ソルも引き出せない。
+これが10/1に戻ってくる動機になり、ASPに見せる成果の実績にもなる。
+
 不正の判定は送金の前に行う。電話番号の登録は10/1以降なので、
 同一番号の重複はそこで発覚し、**1円も払う前に除外できる**。
 
@@ -18,6 +23,7 @@ from dataclasses import dataclass
 from sqlmodel import Session, func, select
 
 from models import CampaignSetting, User
+from services import points_service
 
 logger = logging.getLogger(__name__)
 
@@ -57,19 +63,22 @@ def position_of(session: Session, user: User) -> int:
 def slot_of(session: Session, user: User) -> Slot:
     position = position_of(session, user)
     limit = get_settings(session).slot_limit
-    total = int(session.exec(select(func.count()).select_from(User)).one())
     return Slot(
         position=position,
         limit=limit,
         within_limit=position <= limit,
-        remaining=max(0, limit - total),
+        remaining=remaining_slots(session),
     )
 
 
 def remaining_slots(session: Session) -> int:
-    """LPに出す残り枠。未ログインでも見せられるよう、ユーザー個別の情報を持たない"""
-    total = int(session.exec(select(func.count()).select_from(User)).one())
-    return max(0, get_settings(session).slot_limit - total)
+    """LPに出す残り枠。未ログインでも見せられるよう、ユーザー個別の情報を持たない。
+
+    ⚠️ 登録者数ではなく**付与済み件数**で数える。付与の判定（grant_reward）と
+       同じ基準にしないと、不正を見つけて付与を取り消しても表示上の枠が
+       戻らず、枠の回収という運用が効かなくなる
+    """
+    return max(0, get_settings(session).slot_limit - granted_count(session))
 
 
 def granted_count(session: Session) -> int:
@@ -105,13 +114,84 @@ def grant_reward(session: Session, user: User) -> bool:
     if granted_count(session) >= settings.slot_limit:
         return False
 
-    user.points += settings.reward_points
+    user.points += settings.reward_points_initial
     user.campaign_reward_granted_at = dt.datetime.now(dt.timezone.utc)
     session.add(user)
+    # 台帳に残す。ここを書かないと「理由の分からない300pt」になる。
+    # 付与額を台帳に持つことで、後で報酬額を変えても過去分を復元できる
+    points_service.record(
+        session,
+        user=user,
+        points=settings.reward_points_initial,
+        kind="campaign",
+        note="Bono de pre-registro",
+    )
     logger.info(
         "campaign reward granted: user=%s points=%s",
         user.id,
-        settings.reward_points,
+        settings.reward_points_initial,
+    )
+    return True
+
+
+def completed_tasks(session: Session, user: User) -> int:
+    """こなしたタスクの件数。**承認された成果**だけを数える。
+
+    未承認は残高に入っていないので数えない。数えると、承認されない成果を
+    大量に発生させるだけでボーナスを取れてしまう。
+
+    TODO: 独自タスク（アンケート等）が入ったら、その完了もここに足す
+    """
+    from models import Postback  # 循環importを避けるため関数内で読む
+
+    return int(
+        session.exec(
+            select(func.count())
+            .select_from(Postback)
+            .where(Postback.user_id == user.id, Postback.status == "approved")
+        ).one()
+    )
+
+
+def bonus_progress(session: Session, user: User) -> tuple[int, int]:
+    """(こなした件数, 必要な件数)。画面の進捗表示に使う"""
+    settings = get_settings(session)
+    return completed_tasks(session, user), settings.bonus_required_tasks
+
+
+def try_grant_bonus(session: Session, user: User) -> bool:
+    """タスクを規定数こなしていたら残りの報酬を付ける。付けたら True。
+
+    commitはしない（呼び出し元のトランザクションに載せる）。
+
+    ⚠️ 初回分を受け取っていない人には付けない。枠外で登録した人が
+       タスクだけこなしてボーナスを取る、という穴を塞ぐため
+    """
+    if user.campaign_reward_granted_at is None:
+        return False
+    if user.campaign_bonus_granted_at is not None:
+        return False
+
+    settings = get_settings(session)
+    if settings.reward_points_bonus <= 0:
+        return False
+    if completed_tasks(session, user) < settings.bonus_required_tasks:
+        return False
+
+    user.points += settings.reward_points_bonus
+    user.campaign_bonus_granted_at = dt.datetime.now(dt.timezone.utc)
+    session.add(user)
+    points_service.record(
+        session,
+        user=user,
+        points=settings.reward_points_bonus,
+        kind="campaign_bonus",
+        note="Bono por completar tareas",
+    )
+    logger.info(
+        "campaign bonus granted: user=%s points=%s",
+        user.id,
+        settings.reward_points_bonus,
     )
     return True
 

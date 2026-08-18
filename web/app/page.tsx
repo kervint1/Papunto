@@ -8,6 +8,8 @@ import { ArrowRight, Banknote, ListChecks, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampaignBadge } from "@/components/CampaignBadge";
 import { Logo } from "@/components/Logo";
+import { InviteIntro } from "@/components/InviteIntro";
+import { captureRefFromUrl } from "@/lib/referral";
 
 const STEPS = [
   { icon: ListChecks, title: "Elige una tarea", desc: "Solo elige la que más te guste" },
@@ -18,6 +20,12 @@ const STEPS = [
 export default function LandingPage() {
   const router = useRouter();
   const { status } = useSession();
+
+  // 招待リンク（?ref=）で来た場合にコードを保存する。ログインの往復を挟むので、
+  // 適用はログイン後に ReferralClaimer が行う
+  useEffect(() => {
+    captureRefFromUrl();
+  }, []);
 
   // ログイン済みならLPを見せずにHomeへ送る。
   // ルートに戻るたびログインを求められるように見えるのを防ぐ
@@ -64,6 +72,10 @@ export default function LandingPage() {
               tanto, puedes leer nuestras guías para ahorrar y ganar dinero en
               Perú.
             </p>
+
+            {/* 登録の前に招待コードを確かめられるようにする。
+                後から入れる形だと、入ったかどうか分からないまま登録させることになる */}
+            <InviteIntro />
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {/* ブログは公開済みで読める。準備中の間はそちらへ送る */}

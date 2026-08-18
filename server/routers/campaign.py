@@ -24,7 +24,11 @@ def get_status(session: Session = Depends(get_session)):
     return CampaignStatus(
         slot_limit=settings.slot_limit,
         remaining=campaign_service.remaining_slots(session),
-        reward_points=settings.reward_points,
+        reward_points_initial=settings.reward_points_initial,
+        reward_points_bonus=settings.reward_points_bonus,
+        bonus_required_tasks=settings.bonus_required_tasks,
+        referral_reward_points=settings.referral_reward_points,
+        referral_max_per_user=settings.referral_max_per_user,
         withdrawals_open_at=opens.isoformat() if opens else None,
         withdrawals_open=campaign_service.withdrawals_open(session),
     )
@@ -36,6 +40,8 @@ def get_my_slot(
     session: Session = Depends(get_session),
 ):
     slot = campaign_service.slot_of(session, user)
+    settings = campaign_service.get_settings(session)
+    done, required = campaign_service.bonus_progress(session, user)
     return CampaignSlot(
         position=slot.position,
         slot_limit=slot.limit,
@@ -44,8 +50,16 @@ def get_my_slot(
         phone_registered=bool(user.phone),
         reward_granted=user.campaign_reward_granted_at is not None,
         reward_points=(
-            campaign_service.get_settings(session).reward_points
+            settings.reward_points_initial
             if user.campaign_reward_granted_at is not None
             else 0
         ),
+        bonus_granted=user.campaign_bonus_granted_at is not None,
+        bonus_points=(
+            settings.reward_points_bonus
+            if user.campaign_bonus_granted_at is not None
+            else 0
+        ),
+        tasks_completed=done,
+        bonus_required_tasks=required,
     )

@@ -11,6 +11,7 @@ from dependencies import get_current_user
 from errors import ApiError
 from models import TopUp, User
 from schemas.topup import OperatorDetectRead, TopUpCreate, TopUpList, TopUpRead
+from services import points_service
 from services.reloadly_service import ReloadlyError, ReloadlyService
 
 router = APIRouter(prefix="/api/v1/topups", tags=["topups"])
@@ -104,6 +105,16 @@ def create_topup(
         status="processing",
     )
     session.add(topup)
+    session.flush()
+    points_service.record(
+        session,
+        user=locked_user,
+        points=-body.points,
+        kind="topup",
+        reference_type="topup",
+        reference_id=topup.id,
+        note=f"Recarga {detected["operator_name"]}",
+    )
     session.commit()  # ここで行ロックを解放。以降は外部API待ちの間DBロックを保持しない
     session.refresh(topup)
 
@@ -119,6 +130,15 @@ def create_topup(
         # --- フェーズ3(失敗時): 新しいトランザクションでポイントを全額戻す ---
         refund_user = session.exec(select(User).where(User.id == user.id).with_for_update()).one()
         refund_user.points += topup.points
+        points_service.record(
+            session,
+            user=refund_user,
+            points=topup.points,
+            kind="refund",
+            reference_type="topup",
+            reference_id=topup.id,
+            note="Devolución por recarga fallida",
+        )
         topup.status = "failed"
         topup.failure_reason = exc.message
         session.add(topup)

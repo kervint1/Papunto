@@ -3,15 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { CampaignCard } from "@/components/CampaignCard";
+import { InviteCard } from "@/components/InviteCard";
+import { InviteCodeEntry } from "@/components/InviteCodeEntry";
 import { Header } from "@/components/Header";
 import { Progress } from "@/components/ui/progress";
 import { useMe } from "@/hooks/useMe";
 import {
   getCampaignStatus,
   getOffers,
+  getReferral,
   type CampaignStatus,
   type Offer,
+  type ReferralMe,
 } from "@/lib/api";
+import { CLAIMED_EVENT } from "@/lib/referral";
 
 const MONLIX_IFRAME_URL = process.env.NEXT_PUBLIC_MONLIX_IFRAME_URL;
 
@@ -54,9 +59,27 @@ export default function HomePage() {
   // 交換の開放日。進捗カードとキャンペーンカードの両方の文言に効く
   const [campaign, setCampaign] = useState<CampaignStatus | null>(null);
 
+  const [referral, setReferral] = useState<ReferralMe | null>(null);
+
   useEffect(() => {
     getCampaignStatus().then(setCampaign).catch(() => setCampaign(null));
   }, []);
+
+  const loadReferral = useCallback(() => {
+    if (!token) return;
+    getReferral(token).then(setReferral).catch(() => setReferral(null));
+  }, [token]);
+
+  useEffect(() => {
+    loadReferral();
+  }, [loadReferral]);
+
+  // リンク経由の自動適用は別コンポーネントで走る。終わったら読み直さないと、
+  // 適用済みなのに「コードを入力してください」が残ってしまう
+  useEffect(() => {
+    window.addEventListener(CLAIMED_EVENT, loadReferral);
+    return () => window.removeEventListener(CLAIMED_EVENT, loadReferral);
+  }, [loadReferral]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [offersError, setOffersError] = useState(false);
   const [loadingOffers, setLoadingOffers] = useState(true);
@@ -126,7 +149,20 @@ export default function HomePage() {
         {/* 事前登録の状態。交換が開くまでの間、案件が0件で空になるため、
             番号・残高・開放日を出して「次に何が起きるか」を示す */}
         <div className="mt-6">
-          <CampaignCard token={token} status={campaign} />
+          <CampaignCard token={token} status={campaign} referral={referral} />
+        </div>
+
+        {/* 招待コードの入力。招待された側が探す画面なので、
+            「友達を招待して稼ごう」のカードより前に出す */}
+        {referral?.can_claim && (
+          <div className="mt-4">
+            <InviteCodeEntry token={token} data={referral} onClaimed={loadReferral} />
+          </div>
+        )}
+
+        {/* 招待。案件がまだ0件なので、いま画面上で唯一「やれること」になる */}
+        <div className="mt-4">
+          <InviteCard data={referral} />
         </div>
 
         {/* Tareas: Monlix las sirve en un iframe; con CPALead pintamos la lista nosotros */}
