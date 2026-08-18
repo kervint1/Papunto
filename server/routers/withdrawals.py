@@ -38,8 +38,8 @@ def create_withdrawal(
 ):
     # 事前登録の期間中は交換させない。ポイントの付与は即時だが、
     # 交換の開放は告知した日付（10/1）まで待つ
-    if not campaign_service.withdrawals_open():
-        opens = campaign_service.withdrawals_open_at()
+    if not campaign_service.withdrawals_open(session):
+        opens = campaign_service.withdrawals_open_at(session)
         raise ApiError(
             403,
             "WITHDRAWALS_NOT_OPEN",

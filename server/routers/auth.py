@@ -35,7 +35,7 @@ def login(body: LoginRequest, session: Session = Depends(get_session)):
         # idを確定させてから報酬を付ける（ログに残すidが要るため）
         session.flush()
         # 事前登録キャンペーン。枠が残っていれば登録した時点で付与する。
-        # 交換は WITHDRAWALS_OPEN_AT まで開かないが、残高が増えるのが
+        # 交換は開放日（/admin/campaign）まで開かないが、残高が増えるのが
         # 見えないと進んでいる実感がないので、付与自体は即時にする
         campaign_service.grant_reward(session, user)
     else:

@@ -211,6 +211,10 @@ export interface CampaignSlot {
   within_limit: boolean;
   remaining: number;
   phone_registered: boolean;
+  /** ⚠️ within_limit ではなく実際に付与されたか。文言はこちらを見る */
+  reward_granted: boolean;
+  /** 付与された額。0なら未付与 */
+  reward_points: number;
 }
 
 export function getCampaignSlot(token: string): Promise<CampaignSlot> {
@@ -607,4 +611,35 @@ export function cleanupUnusedImages(
     token,
     { method: "POST" }
   );
+}
+
+export interface AdminCampaignSettings {
+  slot_limit: number;
+  reward_points: number;
+  /** ISO日付。null は「即座に開放」 */
+  withdrawals_open_at: string | null;
+  updated_at: string | null;
+  updated_by_email: string | null;
+  /** 付与済みの人数。枠を下げられる下限になる */
+  granted_count: number;
+  users_total: number;
+}
+
+export function getCampaignSettings(token: string): Promise<AdminCampaignSettings> {
+  return apiFetch<AdminCampaignSettings>("/api/v1/admin/campaign-settings", token);
+}
+
+export function updateCampaignSettings(
+  token: string,
+  body: {
+    slot_limit: number;
+    reward_points: number;
+    withdrawals_open_at: string | null;
+    confirm_open_now?: boolean;
+  }
+): Promise<AdminCampaignSettings> {
+  return apiFetch<AdminCampaignSettings>("/api/v1/admin/campaign-settings", token, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
 }

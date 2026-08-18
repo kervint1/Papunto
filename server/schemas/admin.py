@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Page(BaseModel):
@@ -162,3 +162,28 @@ class AdminUserDetail(BaseModel):
     postbacks: list[AdminPostbackRead]
     withdrawals: list[AdminWithdrawalRead]
     topups: list[AdminTopUpRead]
+
+
+class AdminCampaignSettings(BaseModel):
+    """事前登録キャンペーンの設定（管理画面で編集する）"""
+
+    slot_limit: int
+    reward_points: int
+    withdrawals_open_at: Optional[date] = None  # NULL は即座に開放
+    updated_at: Optional[datetime] = None
+    updated_by_email: Optional[str] = None
+
+    # 保存の前に影響を見せるための現況。設定と一緒に返す
+    granted_count: int  # 付与済みの人数（＝消費済みの枠）
+    users_total: int
+
+
+class AdminCampaignSettingsUpdate(BaseModel):
+    # 枠を付与済み人数より小さくすると残り枠が0のまま止まるので、
+    # 下限は1にしておき、実際の整合はルーター側で見る
+    slot_limit: int = Field(ge=1, le=100000)
+    reward_points: int = Field(ge=0, le=100000)
+    withdrawals_open_at: Optional[date] = None
+    # 開放日を空にする（＝即座に開放する）ときだけ必須。
+    # 事前登録中に誤って開放するのを一段止める
+    confirm_open_now: bool = False

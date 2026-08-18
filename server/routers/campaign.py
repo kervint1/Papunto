@@ -8,7 +8,6 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
-import config
 from database import get_session
 from dependencies import get_current_user
 from models import User
@@ -20,13 +19,14 @@ router = APIRouter(prefix="/api/v1/campaign", tags=["campaign"])
 
 @router.get("/status", response_model=CampaignStatus)
 def get_status(session: Session = Depends(get_session)):
-    opens = campaign_service.withdrawals_open_at()
+    settings = campaign_service.get_settings(session)
+    opens = settings.withdrawals_open_at
     return CampaignStatus(
-        slot_limit=config.CAMPAIGN_SLOT_LIMIT,
+        slot_limit=settings.slot_limit,
         remaining=campaign_service.remaining_slots(session),
-        reward_points=config.CAMPAIGN_REWARD_POINTS,
+        reward_points=settings.reward_points,
         withdrawals_open_at=opens.isoformat() if opens else None,
-        withdrawals_open=campaign_service.withdrawals_open(),
+        withdrawals_open=campaign_service.withdrawals_open(session),
     )
 
 
@@ -42,4 +42,10 @@ def get_my_slot(
         within_limit=slot.within_limit,
         remaining=slot.remaining,
         phone_registered=bool(user.phone),
+        reward_granted=user.campaign_reward_granted_at is not None,
+        reward_points=(
+            campaign_service.get_settings(session).reward_points
+            if user.campaign_reward_granted_at is not None
+            else 0
+        ),
     )

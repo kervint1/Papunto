@@ -56,9 +56,12 @@ Herokuは buildpack を2段で使い、`server/` だけを切り出している�
 | `APPWRITE_ENDPOINT` | `https://nyc.cloud.appwrite.io/v1` | リージョン不一致で全操作が失敗する |
 | `APPWRITE_PROJECT_ID` / `APPWRITE_API_KEY` / `APPWRITE_BUCKET_ID` | Appwriteの値 | **画像がdyno再起動で消える**（下記） |
 | `MONLIX_POSTBACK_SECRET` | Monlix契約後 | 署名検証をスキップし誰でも付与できる |
-| `CAMPAIGN_SLOT_LIMIT` | `100` | 既定100。枠を増やすときはここだけ変える（デプロイ不要） |
-| `CAMPAIGN_REWARD_POINTS` | `500` | 既定500（= S/ 5。最低換金額と同額） |
-| `WITHDRAWALS_OPEN_AT` | `2026-10-01` | **空だと即座に交換できる。** LPで告知した日付と必ず一致させる |
+
+> **キャンペーンの設定（枠数・報酬・交換の開放日）は環境変数ではない。**
+> DBの `campaign_settings` に持ち、管理画面 **/admin/campaign** から変える。
+> キャンペーン中に何度も触る値で、環境変数だと変更のたびに設定変更と再起動が要るため。
+> 初期値（100枠 / 500pt / 2026-10-01）はマイグレーション `e6f1a4c92b38` が投入する。
+> 変更は `admin_logs` に before/after 付きで残る。
 
 ### Vercel（web / Root Directory = `web`）
 

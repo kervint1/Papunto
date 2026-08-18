@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config  # noqa: E402
 from database import get_session  # noqa: E402
 from main import app  # noqa: E402
-from models import User  # noqa: E402
+from models import CampaignSetting, User  # noqa: E402
 
 ALLOWED_IP = "203.0.113.10"
 API_KEY = "test-api-key"
@@ -57,6 +57,38 @@ def cpalead_settings(monkeypatch):
     monkeypatch.setattr(config, "CPALEAD_ALLOWED_IPS", [ALLOWED_IP])
     monkeypatch.setattr(config, "CPALEAD_USD_TO_POINTS", 300)
     monkeypatch.setattr(config, "MAX_REWARD_POINTS", 100000)
+
+
+@pytest.fixture(autouse=True)
+def campaign_setting(session: Session):
+    """キャンペーン設定の行を既定値で用意する。
+
+    本番はマイグレーションが1行投入するが、テストは create_all で
+    テーブルだけ作られるので、ここで同じ役割を担う。
+
+    ⚠️ 開放日は None（＝即開放）にしておく。交換を検証するテストの大半は
+    キャンペーンの日付と関係がないため。開放日そのものを見るテストは
+    set_campaign() で上書きする
+    """
+    setting = CampaignSetting(id=1, slot_limit=100, reward_points=500, withdrawals_open_at=None)
+    session.add(setting)
+    session.commit()
+    session.refresh(setting)
+    return setting
+
+
+def set_campaign(session: Session, **fields):
+    """テストからキャンペーン設定を変える。
+
+    設定はDBにあるので monkeypatch では変えられない
+    """
+    setting = session.get(CampaignSetting, 1)
+    for key, value in fields.items():
+        setattr(setting, key, value)
+    session.add(setting)
+    session.commit()
+    session.refresh(setting)
+    return setting
 
 
 @pytest.fixture(name="user")

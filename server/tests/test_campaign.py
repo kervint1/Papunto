@@ -12,10 +12,10 @@ import datetime as dt
 import pytest
 from sqlmodel import Session
 
-import config
 from models import User
 from services import campaign_service
 from services.auth_service import AuthService
+from tests.conftest import set_campaign
 
 
 def auth(u: User) -> dict:
@@ -45,8 +45,8 @@ def test_position_follows_registration_order(client, session, user):
     assert client.get("/api/v1/campaign/me", headers=auth(later[1])).json()["position"] == 3
 
 
-def test_within_limit(client, session, user, monkeypatch):
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 2)
+def test_within_limit(client, session, user):
+    set_campaign(session, slot_limit=2)
     later = make_users(session, 2)
 
     assert client.get("/api/v1/campaign/me", headers=auth(user)).json()["within_limit"] is True
@@ -61,60 +61,54 @@ def test_my_slot_requires_auth(client):
 
 # ---------------------------------------------------------------- 残り枠（LP用）
 
-def test_status_is_public(client, monkeypatch):
+def test_status_is_public(client, session):
     """LPに「残り63枠」を出すため認証を求めない。希少性が拡散の動機になる"""
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 100)
+    set_campaign(session, slot_limit=100)
     res = client.get("/api/v1/campaign/status")
     assert res.status_code == 200
     assert res.json()["slot_limit"] == 100
 
 
-def test_remaining_decreases(client, session, user, monkeypatch):
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 5)
+def test_remaining_decreases(client, session, user):
+    set_campaign(session, slot_limit=5)
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 4  # userが1人いる
 
     make_users(session, 3)
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 1
 
 
-def test_remaining_never_negative(client, session, monkeypatch):
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 2)
+def test_remaining_never_negative(client, session):
+    set_campaign(session, slot_limit=2)
     make_users(session, 5)
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 0
 
 
-def test_limit_is_configurable(client, monkeypatch):
+def test_limit_is_configurable(client, session):
     """100名で始めて後から増やす。設定変更だけで済ませたい"""
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 200)
+    set_campaign(session, slot_limit=200)
     assert client.get("/api/v1/campaign/status").json()["slot_limit"] == 200
 
 
 # ---------------------------------------------------------------- 交換の開放日
 
-def test_open_when_unset(monkeypatch):
-    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "")
-    assert campaign_service.withdrawals_open() is True
+def test_open_when_unset(session):
+    set_campaign(session, withdrawals_open_at=None)
+    assert campaign_service.withdrawals_open(session) is True
 
 
-def test_closed_before_date(monkeypatch):
-    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026-10-01")
-    assert campaign_service.withdrawals_open(dt.date(2026, 9, 30)) is False
+def test_closed_before_date(session):
+    set_campaign(session, withdrawals_open_at=dt.date(2026, 10, 1))
+    assert campaign_service.withdrawals_open(session, dt.date(2026, 9, 30)) is False
 
 
-def test_open_on_and_after_date(monkeypatch):
-    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026-10-01")
-    assert campaign_service.withdrawals_open(dt.date(2026, 10, 1)) is True
-    assert campaign_service.withdrawals_open(dt.date(2026, 10, 2)) is True
+def test_open_on_and_after_date(session):
+    set_campaign(session, withdrawals_open_at=dt.date(2026, 10, 1))
+    assert campaign_service.withdrawals_open(session, dt.date(2026, 10, 1)) is True
+    assert campaign_service.withdrawals_open(session, dt.date(2026, 10, 2)) is True
 
 
-def test_invalid_date_falls_back_to_open(monkeypatch):
-    """設定ミスで換金を止めるより、開放されている方が実害が小さい"""
-    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026/10/01")
-    assert campaign_service.withdrawals_open() is True
-
-
-def test_withdrawal_blocked_before_open_date(client, session, user, monkeypatch):
-    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2099-01-01")
+def test_withdrawal_blocked_before_open_date(client, session, user):
+    set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1))
     user.points = 1000
     user.phone = "987654321"
     session.add(user)
@@ -127,8 +121,8 @@ def test_withdrawal_blocked_before_open_date(client, session, user, monkeypatch)
     assert "2099-01-01" in res.json()["error"]["message"]
 
 
-def test_withdrawal_allowed_after_open_date(client, session, user, monkeypatch):
-    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2020-01-01")
+def test_withdrawal_allowed_after_open_date(client, session, user):
+    set_campaign(session, withdrawals_open_at=dt.date(2020, 1, 1))
     user.points = 1000
     user.phone = "987654321"
     session.add(user)
@@ -138,8 +132,32 @@ def test_withdrawal_allowed_after_open_date(client, session, user, monkeypatch):
     assert res.status_code == 201, res.text
 
 
-def test_status_reports_open_date(client, monkeypatch):
-    monkeypatch.setattr(config, "WITHDRAWALS_OPEN_AT", "2026-10-01")
+def test_status_reports_open_date(client, session):
+    set_campaign(session, withdrawals_open_at=dt.date(2026, 10, 1))
     body = client.get("/api/v1/campaign/status").json()
     assert body["withdrawals_open_at"] == "2026-10-01"
     assert body["withdrawals_open"] is False
+
+
+def test_slot_reports_reward_granted(client, session, user):
+    """付与済みかどうかを実績で返す。
+
+    枠内でも、キャンペーン開始前に登録したユーザーは付与されていない。
+    画面が「500pt受け取りました」と嘘をつかないために必要
+    """
+    user.campaign_reward_granted_at = None
+    session.add(user)
+    session.commit()
+
+    body = client.get("/api/v1/campaign/me", headers=auth(user)).json()
+    assert body["within_limit"] is True
+    assert body["reward_granted"] is False
+    assert body["reward_points"] == 0
+
+    user.campaign_reward_granted_at = dt.datetime.now(dt.timezone.utc)
+    session.add(user)
+    session.commit()
+
+    body = client.get("/api/v1/campaign/me", headers=auth(user)).json()
+    assert body["reward_granted"] is True
+    assert body["reward_points"] == 500

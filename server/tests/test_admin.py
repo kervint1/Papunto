@@ -246,3 +246,99 @@ def test_me_exposes_admin_flag(client, session, admin, user):
     """
     assert client.get("/api/v1/me", headers=auth(admin)).json()["is_admin"] is True
     assert client.get("/api/v1/me", headers=auth(user)).json()["is_admin"] is False
+
+
+# ------------------------------------------------- キャンペーン設定
+
+def test_campaign_settings_requires_admin(client, user):
+    """一般ユーザーは設定を変えられない"""
+    res = client.put(
+        "/api/v1/admin/campaign-settings",
+        headers=auth(user),
+        json={"slot_limit": 200, "reward_points": 500, "withdrawals_open_at": "2026-10-01"},
+    )
+    assert res.status_code in (401, 403)
+
+
+def test_campaign_settings_update(client, session, admin):
+    res = client.put(
+        "/api/v1/admin/campaign-settings",
+        headers=auth(admin),
+        json={"slot_limit": 200, "reward_points": 700, "withdrawals_open_at": "2026-11-15"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["slot_limit"] == 200
+    assert body["reward_points"] == 700
+    assert body["withdrawals_open_at"] == "2026-11-15"
+    assert body["updated_by_email"] == "admin@example.com"
+
+    # 公開APIにも即座に反映される（再起動を要さないのがこの機能の目的）
+    public = client.get("/api/v1/campaign/status").json()
+    assert public["slot_limit"] == 200
+    assert public["reward_points"] == 700
+    assert public["withdrawals_open_at"] == "2026-11-15"
+
+
+def test_campaign_settings_change_is_logged(client, session, admin):
+    """金の出入りに効く設定なので、誰が何をどう変えたかを残す"""
+    client.put(
+        "/api/v1/admin/campaign-settings",
+        headers=auth(admin),
+        json={"slot_limit": 150, "reward_points": 500, "withdrawals_open_at": "2026-10-01"},
+    )
+    log = session.exec(
+        select(AdminLog).where(AdminLog.action == "campaign_settings.update")
+    ).one()
+    assert log.admin_user_id == admin.id
+    assert log.detail["before"]["slot_limit"] == 100
+    assert log.detail["after"]["slot_limit"] == 150
+
+
+def test_campaign_settings_open_now_needs_confirmation(client, admin):
+    """開放日を空にすると全員が即座に交換できる。誤操作を一段止める"""
+    res = client.put(
+        "/api/v1/admin/campaign-settings",
+        headers=auth(admin),
+        json={"slot_limit": 100, "reward_points": 500, "withdrawals_open_at": None},
+    )
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "CONFIRM_OPEN_NOW_REQUIRED"
+
+    res = client.put(
+        "/api/v1/admin/campaign-settings",
+        headers=auth(admin),
+        json={
+            "slot_limit": 100,
+            "reward_points": 500,
+            "withdrawals_open_at": None,
+            "confirm_open_now": True,
+        },
+    )
+    assert res.status_code == 200
+    assert client.get("/api/v1/campaign/status").json()["withdrawals_open"] is True
+
+
+def test_campaign_settings_cannot_go_below_granted(client, session, admin):
+    """付与済みの人数より枠を小さくできない。
+
+    付与は取り消さないので、許すと「枠外なのに報酬を持っている人」が生まれ、
+    残り枠の表示と実態が食い違う
+    """
+    from services import campaign_service
+
+    for i in range(3):
+        u = User(google_id=f"g-cs{i}", email=f"cs{i}@example.com", name=f"CS{i}")
+        session.add(u)
+        session.commit()
+        session.refresh(u)
+        campaign_service.grant_reward(session, u)
+        session.commit()
+
+    res = client.put(
+        "/api/v1/admin/campaign-settings",
+        headers=auth(admin),
+        json={"slot_limit": 2, "reward_points": 500, "withdrawals_open_at": "2026-10-01"},
+    )
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "SLOT_LIMIT_BELOW_GRANTED"

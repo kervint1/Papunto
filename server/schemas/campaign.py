@@ -21,3 +21,7 @@ class CampaignSlot(BaseModel):
     within_limit: bool
     remaining: int
     phone_registered: bool
+    # ⚠️ within_limit ではなく**実際に付与されたか**。枠内でも、キャンペーン開始前に
+    # 登録したユーザーは付与されていない。画面の文言はこちらを見る
+    reward_granted: bool
+    reward_points: int  # 付与された額。0なら未付与

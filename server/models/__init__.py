@@ -1,4 +1,5 @@
 from models.admin_log import AdminLog
+from models.campaign_setting import CampaignSetting
 from models.complaint import Complaint
 from models.post import Post
 from models.postback import Postback
@@ -16,4 +17,5 @@ __all__ = [
     "TopUp",
     "AdminLog",
     "Post",
+    "CampaignSetting",
 ]

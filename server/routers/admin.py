@@ -12,8 +12,20 @@ import config
 from database import get_session
 from dependencies import require_admin
 from errors import ApiError
-from models import AdminLog, Complaint, Post, Postback, PostbackLog, TopUp, User, Withdrawal
+from models import (
+    AdminLog,
+    CampaignSetting,
+    Complaint,
+    Post,
+    Postback,
+    PostbackLog,
+    TopUp,
+    User,
+    Withdrawal,
+)
 from schemas.admin import (
+    AdminCampaignSettings,
+    AdminCampaignSettingsUpdate,
     AdminComplaintList,
     AdminComplaintRead,
     AdminLogList,
@@ -34,7 +46,7 @@ from schemas.admin import (
     WithdrawalActionBody,
 )
 from schemas.offer import OfferList, OfferRead
-from services import admin_service
+from services import admin_service, campaign_service
 from services.cpalead_service import CPALeadError, CPALeadService
 
 # 依存をルーター単位で付ける。個別のエンドポイントで書き忘れても認可が外れないようにする
@@ -123,6 +135,99 @@ def stats(session: Session = Depends(get_session)):
 def invalidate_stats_cache() -> None:
     """管理操作で件数が変わったときに即座に反映させる"""
     _stats_cache["value"] = None
+
+
+# ---------------------------------------------------- キャンペーン設定
+
+def _campaign_settings_read(session: Session, setting: CampaignSetting) -> AdminCampaignSettings:
+    email = None
+    if setting.updated_by_user_id is not None:
+        admin_user = session.get(User, setting.updated_by_user_id)
+        email = admin_user.email if admin_user else None
+    return AdminCampaignSettings(
+        slot_limit=setting.slot_limit,
+        reward_points=setting.reward_points,
+        withdrawals_open_at=setting.withdrawals_open_at,
+        updated_at=setting.updated_at,
+        updated_by_email=email,
+        granted_count=campaign_service.granted_count(session),
+        users_total=int(session.exec(select(func.count()).select_from(User)).one()),
+    )
+
+
+@router.get("/campaign-settings", response_model=AdminCampaignSettings)
+def get_campaign_settings(session: Session = Depends(get_session)):
+    return _campaign_settings_read(session, campaign_service.get_settings(session))
+
+
+@router.put("/campaign-settings", response_model=AdminCampaignSettings)
+def update_campaign_settings(
+    body: AdminCampaignSettingsUpdate,
+    admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """枠数・報酬・交換の開放日を変える。
+
+    環境変数ではなくここで変えるのは、キャンペーン中に何度も触る値だから
+    （枠は100→200に増やす想定、開放日はリリースがずれれば動く）。
+    """
+    setting = session.get(CampaignSetting, 1)
+    if setting is None:
+        # マイグレーションで入るはずだが、無ければここで作る
+        setting = CampaignSetting(id=1)
+
+    # 開放日を空にすると全員が即座に交換できる。事前登録中の誤操作を一段止める
+    if body.withdrawals_open_at is None and not body.confirm_open_now:
+        raise ApiError(
+            400,
+            "CONFIRM_OPEN_NOW_REQUIRED",
+            "Vaciar la fecha abre el canje de inmediato. Confirma la acción.",
+        )
+
+    # 付与済みの人数より枠を小さくすると、すでに付与した人が枠外になる。
+    # 付与自体は取り消さない（＝残高は減らない）ので、気づけるように拒否する
+    granted = campaign_service.granted_count(session)
+    if body.slot_limit < granted:
+        raise ApiError(
+            400,
+            "SLOT_LIMIT_BELOW_GRANTED",
+            f"Ya se otorgó el premio a {granted} usuarios. El cupo no puede ser menor.",
+        )
+
+    before = {
+        "slot_limit": setting.slot_limit,
+        "reward_points": setting.reward_points,
+        "withdrawals_open_at": (
+            setting.withdrawals_open_at.isoformat() if setting.withdrawals_open_at else None
+        ),
+    }
+    setting.slot_limit = body.slot_limit
+    setting.reward_points = body.reward_points
+    setting.withdrawals_open_at = body.withdrawals_open_at
+    setting.updated_at = datetime.now(timezone.utc)
+    setting.updated_by_user_id = admin.id
+    session.add(setting)
+
+    admin_service.log_action(
+        session,
+        admin=admin,
+        action="campaign_settings.update",
+        target_type="campaign_setting",
+        target_id="1",
+        detail={
+            "before": before,
+            "after": {
+                "slot_limit": body.slot_limit,
+                "reward_points": body.reward_points,
+                "withdrawals_open_at": (
+                    body.withdrawals_open_at.isoformat() if body.withdrawals_open_at else None
+                ),
+            },
+        },
+    )
+    session.commit()
+    session.refresh(setting)
+    return _campaign_settings_read(session, setting)
 
 
 # ---------------------------------------------------------------- ユーザー

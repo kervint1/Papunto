@@ -12,6 +12,16 @@
 | `withdrawals` | Yape換金申請（消費ポイント＋支払ソル額）と送金ステータス（pending/completed/rejected）を管理する | Wallet / DBクライアント（管理者） |
 | `topups` | Reloadly経由の携帯キャリアチャージ交換 | Wallet / 交換画面 |
 | `complaints` | Indecopi 苦情記録簿 | Libro de Reclamaciones |
+| `campaign_settings` | 事前登録キャンペーンの枠数・報酬・交換の開放日（**常に1行**、id=1） | /admin/campaign |
+
+### キャンペーン設定を環境変数に置かない理由
+
+枠数（100→200に増やす想定）、報酬、交換の開放日（リリースがずれれば動く）は
+**キャンペーン中に変わる**。環境変数だと変更のたびに Heroku の設定変更と再起動が要り、
+運用中に何度も触るには重い。DBに1行持ち、管理画面から変えて即座に反映させる。
+
+変更は `admin_logs` に before/after 付きで残す（金の出入りに効く設定のため）。
+開放日を空にすると全員が即座に交換できるので、その操作だけ確認を挟んでいる。
 
 ### オファーウォールの併存（provider）
 

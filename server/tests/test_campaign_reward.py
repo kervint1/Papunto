@@ -10,9 +10,9 @@ import datetime as dt
 
 from sqlmodel import Session
 
-import config
 from models import User
 from services import campaign_service
+from tests.conftest import set_campaign
 
 
 def make_user(session: Session, suffix: str) -> User:
@@ -25,9 +25,8 @@ def make_user(session: Session, suffix: str) -> User:
 
 # ---------------------------------------------------------------- 付与
 
-def test_grants_reward(session, monkeypatch):
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 500)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 100)
+def test_grants_reward(session):
+    set_campaign(session, reward_points=500, slot_limit=100)
     u = make_user(session, "a")
 
     assert campaign_service.grant_reward(session, u) is True
@@ -37,19 +36,17 @@ def test_grants_reward(session, monkeypatch):
     assert u.campaign_reward_granted_at is not None
 
 
-def test_amount_is_configurable(session, monkeypatch):
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 200)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 100)
+def test_amount_is_configurable(session):
+    set_campaign(session, reward_points=200, slot_limit=100)
     u = make_user(session, "b")
 
     campaign_service.grant_reward(session, u)
     assert u.points == 200
 
 
-def test_adds_to_existing_points(session, monkeypatch):
+def test_adds_to_existing_points(session):
     """既存の残高を上書きしない"""
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 500)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 100)
+    set_campaign(session, reward_points=500, slot_limit=100)
     u = make_user(session, "c")
     u.points = 300
     session.add(u)
@@ -61,10 +58,9 @@ def test_adds_to_existing_points(session, monkeypatch):
 
 # ---------------------------------------------------------------- 二重付与の防止
 
-def test_never_grants_twice(session, monkeypatch):
+def test_never_grants_twice(session):
     """金が動くので、ここだけは確実に防ぐ"""
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 500)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 100)
+    set_campaign(session, reward_points=500, slot_limit=100)
     u = make_user(session, "d")
 
     assert campaign_service.grant_reward(session, u) is True
@@ -77,9 +73,8 @@ def test_never_grants_twice(session, monkeypatch):
 
 # ---------------------------------------------------------------- 枠の判定
 
-def test_stops_at_limit(session, monkeypatch):
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 500)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 2)
+def test_stops_at_limit(session):
+    set_campaign(session, reward_points=500, slot_limit=2)
 
     granted = []
     for i in range(4):
@@ -91,11 +86,10 @@ def test_stops_at_limit(session, monkeypatch):
     assert campaign_service.granted_count(session) == 2
 
 
-def test_counts_granted_not_registered(session, monkeypatch):
+def test_counts_granted_not_registered(session):
     """登録者数ではなく付与済み数で数える。
     キャンペーン開始前に登録したユーザーが枠を消費しないように"""
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 500)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 1)
+    set_campaign(session, reward_points=500, slot_limit=1)
 
     # 開始前からいるユーザー（付与されていない）
     make_user(session, "old1")
@@ -107,10 +101,9 @@ def test_counts_granted_not_registered(session, monkeypatch):
     assert campaign_service.grant_reward(session, newcomer) is True
 
 
-def test_limit_change_reopens_slots(session, monkeypatch):
+def test_limit_change_reopens_slots(session):
     """100名で始めて増やす運用。設定を変えるだけで再開できる"""
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 500)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 1)
+    set_campaign(session, reward_points=500, slot_limit=1)
 
     first = make_user(session, "f1")
     campaign_service.grant_reward(session, first)
@@ -119,16 +112,15 @@ def test_limit_change_reopens_slots(session, monkeypatch):
     second = make_user(session, "f2")
     assert campaign_service.grant_reward(session, second) is False
 
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 2)
+    set_campaign(session, slot_limit=2)
     assert campaign_service.grant_reward(session, second) is True
 
 
 # ---------------------------------------------------------------- ログインとの連携
 
-def test_granted_at_is_recorded(session, monkeypatch):
+def test_granted_at_is_recorded(session):
     """いつ付与したかを残す。問い合わせ対応で辿れるようにするため"""
-    monkeypatch.setattr(config, "CAMPAIGN_REWARD_POINTS", 500)
-    monkeypatch.setattr(config, "CAMPAIGN_SLOT_LIMIT", 100)
+    set_campaign(session, reward_points=500, slot_limit=100)
     before = dt.datetime.now(dt.timezone.utc)
 
     u = make_user(session, "g")

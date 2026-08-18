@@ -12,6 +12,7 @@ import {
   FileWarning,
   LayoutDashboard,
   Megaphone,
+  Settings,
   ScrollText,
   Smartphone,
   Target,
@@ -76,6 +77,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
   {
     title: "Campañas",
     items: [
+      { href: "/admin/campaign", label: "Pre-registro", icon: Settings },
       { href: "/admin/offers", label: "Ofertas (CPALead)", icon: Megaphone },
       {
         href: "/admin/postbacks",

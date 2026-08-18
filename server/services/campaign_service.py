@@ -17,10 +17,19 @@ from dataclasses import dataclass
 
 from sqlmodel import Session, func, select
 
-import config
-from models import User
+from models import CampaignSetting, User
 
 logger = logging.getLogger(__name__)
+
+
+def get_settings(session: Session) -> CampaignSetting:
+    """キャンペーン設定を返す。**行が無ければ既定値の一時オブジェクト**を返す。
+
+    読み取りでDBに書かないのは、未ログインでも叩ける /campaign/status から
+    呼ばれるため。行はマイグレーションで投入され、管理画面の保存で更新される
+    """
+    setting = session.get(CampaignSetting, 1)
+    return setting if setting is not None else CampaignSetting(id=1)
 
 
 @dataclass
@@ -47,7 +56,7 @@ def position_of(session: Session, user: User) -> int:
 
 def slot_of(session: Session, user: User) -> Slot:
     position = position_of(session, user)
-    limit = config.CAMPAIGN_SLOT_LIMIT
+    limit = get_settings(session).slot_limit
     total = int(session.exec(select(func.count()).select_from(User)).one())
     return Slot(
         position=position,
@@ -60,7 +69,7 @@ def slot_of(session: Session, user: User) -> Slot:
 def remaining_slots(session: Session) -> int:
     """LPに出す残り枠。未ログインでも見せられるよう、ユーザー個別の情報を持たない"""
     total = int(session.exec(select(func.count()).select_from(User)).one())
-    return max(0, config.CAMPAIGN_SLOT_LIMIT - total)
+    return max(0, get_settings(session).slot_limit - total)
 
 
 def granted_count(session: Session) -> int:
@@ -92,36 +101,28 @@ def grant_reward(session: Session, user: User) -> bool:
     """
     if user.campaign_reward_granted_at is not None:
         return False
-    if granted_count(session) >= config.CAMPAIGN_SLOT_LIMIT:
+    settings = get_settings(session)
+    if granted_count(session) >= settings.slot_limit:
         return False
 
-    user.points += config.CAMPAIGN_REWARD_POINTS
+    user.points += settings.reward_points
     user.campaign_reward_granted_at = dt.datetime.now(dt.timezone.utc)
     session.add(user)
     logger.info(
         "campaign reward granted: user=%s points=%s",
         user.id,
-        config.CAMPAIGN_REWARD_POINTS,
+        settings.reward_points,
     )
     return True
 
 
-def withdrawals_open_at() -> dt.date | None:
-    """換金の開放日。未設定なら None（＝即座に開放）"""
-    raw = config.WITHDRAWALS_OPEN_AT.strip()
-    if not raw:
-        return None
-    try:
-        return dt.date.fromisoformat(raw)
-    except ValueError:
-        # 設定ミスで換金を止めてしまうより、開放されている方がまだ実害が小さい。
-        # ただし気づけるようにログには残す
-        logger.error("WITHDRAWALS_OPEN_AT の形式が不正（YYYY-MM-DD）: %r", raw)
-        return None
+def withdrawals_open_at(session: Session) -> dt.date | None:
+    """換金の開放日。未設定（NULL）なら None ＝ 即座に開放"""
+    return get_settings(session).withdrawals_open_at
 
 
-def withdrawals_open(today: dt.date | None = None) -> bool:
-    opens = withdrawals_open_at()
+def withdrawals_open(session: Session, today: dt.date | None = None) -> bool:
+    opens = withdrawals_open_at(session)
     if opens is None:
         return True
     return (today or dt.datetime.now(dt.timezone.utc).date()) >= opens

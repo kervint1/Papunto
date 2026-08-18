@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { CampaignCard } from "@/components/CampaignCard";
 import { Header } from "@/components/Header";
 import { Progress } from "@/components/ui/progress";
 import { useMe } from "@/hooks/useMe";
-import { getOffers, type Offer } from "@/lib/api";
+import {
+  getCampaignStatus,
+  getOffers,
+  type CampaignStatus,
+  type Offer,
+} from "@/lib/api";
 
 const MONLIX_IFRAME_URL = process.env.NEXT_PUBLIC_MONLIX_IFRAME_URL;
 
@@ -45,6 +51,12 @@ function OfferGrid({ offers }: { offers: Offer[] }) {
 
 export default function HomePage() {
   const { me, token, refresh } = useMe();
+  // 交換の開放日。進捗カードとキャンペーンカードの両方の文言に効く
+  const [campaign, setCampaign] = useState<CampaignStatus | null>(null);
+
+  useEffect(() => {
+    getCampaignStatus().then(setCampaign).catch(() => setCampaign(null));
+  }, []);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [offersError, setOffersError] = useState(false);
   const [loadingOffers, setLoadingOffers] = useState(true);
@@ -100,11 +112,21 @@ export default function HomePage() {
               className="mt-2 h-3 bg-white [&>[data-slot=progress-indicator]]:bg-neutral-900"
             />
             <p className="mt-2 text-xs text-neutral-700">
+              {/* 開放前に「もう交換できます」と言わない。
+                  サーバーは10/1まで交換を拒否するので、言うと必ず失敗する */}
               {remaining > 0
                 ? `Te faltan ${remaining.toLocaleString("es-PE")} pts para retirar`
-                : "¡Ya puedes retirar! Solicítalo desde tu billetera 🎉"}
+                : campaign && !campaign.withdrawals_open
+                  ? "Ya tienes el mínimo. El canje se abre pronto"
+                  : "¡Ya puedes retirar! Solicítalo desde tu billetera 🎉"}
             </p>
           </div>
+        </div>
+
+        {/* 事前登録の状態。交換が開くまでの間、案件が0件で空になるため、
+            番号・残高・開放日を出して「次に何が起きるか」を示す */}
+        <div className="mt-6">
+          <CampaignCard token={token} status={campaign} />
         </div>
 
         {/* Tareas: Monlix las sirve en un iframe; con CPALead pintamos la lista nosotros */}
@@ -126,9 +148,15 @@ export default function HomePage() {
                 No pudimos cargar las tareas. Inténtalo de nuevo más tarde.
               </p>
             ) : offers.length === 0 ? (
-              <p className="p-6 text-center text-sm text-neutral-400">
-                No hay tareas disponibles en este momento.
-              </p>
+              <div className="p-8 text-center">
+                <p className="text-sm text-neutral-600">
+                  Todavía no hay tareas disponibles.
+                </p>
+                <p className="mx-auto mt-2 max-w-md text-sm text-neutral-400">
+                  Estamos preparando el catálogo para Perú. Te avisaremos por
+                  correo cuando estén listas.
+                </p>
+              </div>
             ) : (
               <OfferGrid offers={offers} />
             )}
