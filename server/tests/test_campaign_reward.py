@@ -17,11 +17,11 @@ from tests.conftest import set_campaign
 
 
 def auth(u: User) -> dict:
-    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id, u.google_id)}"}
+    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id)}"}
 
 
 def make_user(session: Session, suffix: str) -> User:
-    u = User(google_id=f"g-{suffix}", email=f"{suffix}@example.com", name=suffix)
+    u = User(provider_user_id=f"g-{suffix}", email=f"{suffix}@example.com", name=suffix)
     session.add(u)
     session.commit()
     session.refresh(u)

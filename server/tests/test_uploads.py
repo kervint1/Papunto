@@ -16,7 +16,7 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 100
 
 @pytest.fixture(name="admin")
 def admin_fixture(session: Session):
-    user = User(google_id="g-admin", email="admin@example.com", name="Admin", is_admin=True)
+    user = User(provider_user_id="g-admin", email="admin@example.com", name="Admin", is_admin=True)
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -24,7 +24,7 @@ def admin_fixture(session: Session):
 
 
 def auth(u: User) -> dict:
-    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id, u.google_id)}"}
+    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id)}"}
 
 
 def upload(client, u: User, content=PNG, content_type="image/png", name="foto.png"):

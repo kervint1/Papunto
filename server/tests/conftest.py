@@ -101,7 +101,7 @@ def set_campaign(session: Session, **fields):
 
 @pytest.fixture(name="user")
 def user_fixture(session: Session):
-    user = User(google_id="google-test-1", email="test@example.com", name="Test", points=0)
+    user = User(provider_user_id="google-test-1", email="test@example.com", name="Test", points=0)
     session.add(user)
     session.commit()
     session.refresh(user)

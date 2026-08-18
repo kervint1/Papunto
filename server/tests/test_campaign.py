@@ -19,13 +19,13 @@ from tests.conftest import set_campaign
 
 
 def auth(u: User) -> dict:
-    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id, u.google_id)}"}
+    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id)}"}
 
 
 def make_users(session: Session, n: int) -> list[User]:
     created = []
     for i in range(n):
-        u = User(google_id=f"g-c{i}", email=f"c{i}@example.com", name=f"U{i}")
+        u = User(provider_user_id=f"g-c{i}", email=f"c{i}@example.com", name=f"U{i}")
         session.add(u)
         created.append(u)
     session.commit()

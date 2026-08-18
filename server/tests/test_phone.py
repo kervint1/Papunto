@@ -14,11 +14,11 @@ from services.auth_service import AuthService
 
 
 def auth(u: User) -> dict:
-    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id, u.google_id)}"}
+    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id)}"}
 
 
 def other_user(session: Session, suffix: str = "2") -> User:
-    u = User(google_id=f"g-{suffix}", email=f"u{suffix}@example.com", name="Otro")
+    u = User(provider_user_id=f"g-{suffix}", email=f"u{suffix}@example.com", name="Otro")
     session.add(u)
     session.commit()
     session.refresh(u)

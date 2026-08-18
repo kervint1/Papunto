@@ -14,7 +14,7 @@ from services.auth_service import AuthService
 
 @pytest.fixture(name="admin")
 def admin_fixture(session: Session):
-    user = User(google_id="g-admin", email="admin@example.com", name="Admin", points=0, is_admin=True)
+    user = User(provider_user_id="g-admin", email="admin@example.com", name="Admin", points=0, is_admin=True)
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -22,7 +22,7 @@ def admin_fixture(session: Session):
 
 
 def auth(u: User) -> dict:
-    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id, u.google_id)}"}
+    return {"Authorization": f"Bearer {AuthService.create_access_token(u.id)}"}
 
 
 def make_withdrawal(session: Session, user: User, points: int = 500) -> Withdrawal:
@@ -332,7 +332,7 @@ def test_campaign_settings_cannot_go_below_granted(client, session, admin):
     from services import campaign_service
 
     for i in range(3):
-        u = User(google_id=f"g-cs{i}", email=f"cs{i}@example.com", name=f"CS{i}")
+        u = User(provider_user_id=f"g-cs{i}", email=f"cs{i}@example.com", name=f"CS{i}")
         session.add(u)
         session.commit()
         session.refresh(u)
@@ -413,7 +413,7 @@ def test_user_detail_includes_referral(client, session, admin, user):
     set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1))
     code = referral_service.ensure_code(session, user)
 
-    invitee = User(google_id="g-inv-d", email="inv-d@example.com", name="Inv")
+    invitee = User(provider_user_id="g-inv-d", email="inv-d@example.com", name="Inv")
     session.add(invitee)
     session.commit()
     session.refresh(invitee)

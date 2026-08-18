@@ -8,7 +8,14 @@ class User(SQLModel, table=True):
     __tablename__ = "users"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    google_id: str = Field(unique=True, index=True)  # GoogleのIDトークンのsubクレーム
+    # ログイン手段。"google" | "facebook" | "email"
+    #
+    # ⚠️ 一意なのは (provider, provider_user_id) の組。provider_user_id 単独では
+    #    別プロバイダ間で衝突しうる（同じ文字列を別のIDとして使う保証がない）
+    provider: str = Field(default="google", index=True)
+    provider_user_id: str = Field(index=True)  # Googleならsubクレーム
+    # メールは本人の同一性の判断材料になるので一意のままにする。
+    # 同じメールで別プロバイダから来たら、新規作成せず既存に紐づける
     email: str = Field(unique=True)
     name: Optional[str] = None
     avatar_url: Optional[str] = None
