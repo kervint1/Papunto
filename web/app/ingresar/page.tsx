@@ -11,8 +11,12 @@ import { MagicLinkForm } from "@/components/MagicLinkForm";
 // NextAuthが ?error= で返す理由。既定のメッセージは英語で素っ気ないため差し替える
 const ERROR_MESSAGES: Record<string, string> = {
   BackendUnavailable: "No pudimos conectar con el servidor. Inténtalo de nuevo en un momento.",
-  BackendRejected: "No pudimos verificar tu cuenta de Google. Vuelve a intentarlo.",
-  OAuthCallback: "Hubo un problema al volver de Google. Vuelve a intentarlo.",
+  BackendRejected: "No pudimos verificar tu cuenta. Vuelve a intentarlo.",
+  OAuthCallback: "Hubo un problema al volver. Vuelve a intentarlo.",
+  // Facebookはメールを返さないことがある（電話番号だけで登録した人など）。
+  // 一般的な失敗と同じ文言だと「なぜ入れないのか」が伝わらない
+  FacebookNoEmail:
+    "Tu cuenta de Facebook no tiene un correo. Entra con Google o con tu correo.",
   SessionExpired: "Tu sesión caducó. Vuelve a iniciar sesión.",
   AccessDenied: "No se pudo acceder con esa cuenta.",
 };
@@ -55,6 +59,17 @@ function LoginContent() {
           <span className="h-px flex-1 bg-neutral-200" />
         </div>
 
+        {/* Facebookを先に置く。集客がFacebookグループなので、来る人は
+            ほぼ全員ログイン済みで、押すだけで終わる */}
+        <Button
+          variant="outline"
+          className="h-12 w-full gap-3 border-neutral-200"
+          onClick={() => signIn("facebook", { callbackUrl: "/tareas" })}
+        >
+          <FacebookIcon />
+          Continuar con Facebook
+        </Button>
+
         <Button
           variant="outline"
           className="h-12 w-full gap-3 border-neutral-200"
@@ -80,6 +95,17 @@ export default function LoginPage() {
         <LoginContent />
       </Suspense>
     </div>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#1877F2"
+        d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07Z"
+      />
+    </svg>
   );
 }
 

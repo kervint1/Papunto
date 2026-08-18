@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import FacebookProvider from "next-auth/providers/facebook";
 import GoogleProvider from "next-auth/providers/google";
 
 // サーバー側（NextAuthコールバック内）からFastAPIを呼ぶときのURL。
@@ -12,6 +13,19 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    /**
+     * 集客がFacebookグループなので、来る人はほぼ全員ログイン済み。
+     * **Facebookのアプリ内ブラウザではGoogleが動かない**ので、
+     * そこから来た人にとってはこれが本命。
+     *
+     * メールを必ず要求する。papuntoはメール前提（10/1の一斉通知、
+     * アカウントの同一性判定）なので、返ってこないと登録できない。
+     */
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID!,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+      authorization: { params: { scope: "public_profile,email" } },
     }),
     /**
      * メールのマジックリンク。
@@ -56,9 +70,18 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      // 初回サインイン時: GoogleのIDトークンをFastAPIに渡し、自前JWTを受け取る。
-      // 2回目以降のjwtコールバックでは account が無く、token.apiToken が引き継がれる
-      if (!account?.id_token) return token;
+      // 初回サインイン時にだけ account が来る。ここでFastAPIに渡して自前JWTを得る。
+      // 2回目以降は account が無く、token.apiToken が引き継がれる
+      if (!account) return token;
+
+      // プロバイダごとに、渡すものとエンドポイントが違う
+      const exchange =
+        account.provider === "facebook"
+          ? { path: "/api/v1/auth/facebook", body: { access_token: account.access_token } }
+          : account.id_token
+            ? { path: "/api/v1/auth/login", body: { id_token: account.id_token } }
+            : null;
+      if (!exchange) return token;
 
       // ここで失敗を握りつぶすと「ログインは成功したのにAPIを一度も呼べない」
       // セッションが残り、再ログインするまで永久に直らない。
@@ -67,10 +90,10 @@ export const authOptions: NextAuthOptions = {
       const timeout = setTimeout(() => controller.abort(), 15000);
       let res: Response;
       try {
-        res = await fetch(`${apiUrl}/api/v1/auth/login`, {
+        res = await fetch(`${apiUrl}${exchange.path}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id_token: account.id_token }),
+          body: JSON.stringify(exchange.body),
           signal: controller.signal,
         });
       } catch (err) {
@@ -81,7 +104,11 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (!res.ok) {
-        console.error("auth/login failed", res.status, await res.text());
+        const body = await res.json().catch(() => null);
+        console.error("auth exchange failed", res.status, body);
+        // メールを返さないFacebookアカウントは、別の手段へ誘導する必要がある。
+        // 一般的な失敗と混ぜると「なぜ入れないのか」が伝わらない
+        if (body?.error?.code === "FACEBOOK_NO_EMAIL") throw new Error("FacebookNoEmail");
         throw new Error("BackendRejected");
       }
 

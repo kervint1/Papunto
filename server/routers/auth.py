@@ -18,9 +18,14 @@ from sqlmodel import Session
 import config
 from database import get_session
 from errors import ApiError
-from schemas.auth import LoginRequest, TokenResponse
+from schemas.auth import FacebookLoginRequest, LoginRequest, TokenResponse
 from schemas.magic_link import MagicLinkRequest, MagicLinkRequestResult, MagicLinkVerify
-from services import identity_service, magic_link_service, mail_service
+from services import (
+    facebook_service,
+    identity_service,
+    magic_link_service,
+    mail_service,
+)
 from services.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
@@ -112,6 +117,39 @@ def verify_magic_link(body: MagicLinkVerify, session: Session = Depends(get_sess
         provider=identity_service.PROVIDER_EMAIL,
         provider_user_id=email,
         email=email,
+    )
+    session.commit()
+    session.refresh(user)
+
+    return TokenResponse(access_token=AuthService.create_access_token(user.id))
+
+
+# ---------------------------------------------------------- Facebookログイン
+
+@router.post("/facebook", response_model=TokenResponse)
+def login_facebook(body: FacebookLoginRequest, session: Session = Depends(get_session)):
+    """Facebookのアクセストークンでログインする。
+
+    集客がFacebookグループなので、**そこから来た人にとってはこれが本命**。
+    Facebookのアプリ内ブラウザではGoogleログインが動かない。
+    """
+    try:
+        profile = facebook_service.verify_token(body.access_token)
+    except facebook_service.FacebookError as e:
+        status = 503 if e.code == "FACEBOOK_UNAVAILABLE" else 401
+        # メールが無いのは利用者側の状態なので、401ではなく422で返す
+        if e.code == "FACEBOOK_NO_EMAIL":
+            status = 422
+        raise ApiError(status, e.code, e.message)
+
+    # Facebookが返すメールは検証済み。メールでの紐づけに使ってよい
+    user = identity_service.resolve_user(
+        session,
+        provider=identity_service.PROVIDER_FACEBOOK,
+        provider_user_id=profile["id"],
+        email=profile["email"],
+        name=profile.get("name"),
+        avatar_url=profile.get("avatar_url"),
     )
     session.commit()
     session.refresh(user)

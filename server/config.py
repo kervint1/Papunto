@@ -56,6 +56,15 @@ MIN_WITHDRAWAL_POINTS = int(os.getenv("MIN_WITHDRAWAL_POINTS", "500"))  # = S/ 5
 
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
+# --- Facebookログイン ---
+# papunto-sns（Instagram投稿）と同じMetaアプリを使ってよい。
+# ⚠️ APP_SECRET は必須。これが無いとトークンが「うちのアプリ向けに発行された
+#    ものか」を確かめられず、他アプリのトークンで他人になりすませる
+META_APP_ID = os.getenv("META_APP_ID", "")
+META_APP_SECRET = os.getenv("META_APP_SECRET", "")
+META_API_VERSION = os.getenv("META_API_VERSION", "v23.0")
+META_GRAPH_BASE = f"https://graph.facebook.com/{META_API_VERSION}"
+
 # --- メール送信（マジックリンクのログイン） ---
 # Gmailは通常のパスワードでは送れない。アプリパスワードを使う
 SMTP_HOST = os.getenv("SMTP_HOST", "")
