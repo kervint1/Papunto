@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/terminos" },
 };
 
-import { Logo } from "@/components/Logo";
+import { LegalLayout } from "@/components/LegalLayout";
 
 function Section({
   title,
@@ -17,9 +17,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-neutral-100 pt-6">
-      <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
-      <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-neutral-600">
+    <section>
+      <h2 className="mt-10 text-[0.8125rem] font-semibold uppercase tracking-wide text-neutral-900">
+        {title}
+      </h2>
+      <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-neutral-700">
         {children}
       </div>
     </section>
@@ -28,15 +30,12 @@ function Section({
 
 export default function TerminosPage() {
   return (
-    <div className="min-h-screen w-full bg-neutral-50">
-      <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-        <Link href="/">
-          <Logo />
-        </Link>
-
-        <h1 className="mt-6">Términos de Uso</h1>
-        <p className="mt-2 text-sm text-neutral-500">Última revisión: 26 de julio de 2026</p>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-600">
+    <LegalLayout
+      title="Términos de Uso"
+      updated="26 de julio de 2026"
+      current="/terminos"
+    >
+        <p className="mt-3 text-sm leading-relaxed text-neutral-700">
           Para utilizar Papunto (el &ldquo;Servicio&rdquo;), operado por su
           titular (el &ldquo;Titular&rdquo;, ver{" "}
           <Link href="/privacidad" className="underline">
@@ -47,11 +46,12 @@ export default function TerminosPage() {
           la aceptación plena de estos Términos.
         </p>
 
-        <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
           {/* Definiciones */}
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">1. Definiciones</h2>
-            <div className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-neutral-600">
+            <h2 className="mt-10 text-[0.8125rem] font-semibold uppercase tracking-wide text-neutral-900">
+              1. Definiciones
+            </h2>
+            <div className="mt-3 flex flex-col gap-2 text-sm leading-relaxed text-neutral-700">
               <p>
                 <strong>Usuario:</strong> persona natural que, habiendo
                 aceptado estos Términos, se ha registrado en el Servicio y
@@ -413,7 +413,6 @@ export default function TerminosPage() {
               validez y eficacia.
             </p>
           </Section>
-        </div>
 
         <p className="mt-6 text-xs text-neutral-400">
           Ante cualquier duda sobre estos Términos, puede contactarnos en{" "}
@@ -430,7 +429,6 @@ export default function TerminosPage() {
           </Link>
           .
         </p>
-      </div>
-    </div>
+    </LegalLayout>
   );
 }

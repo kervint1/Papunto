@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/cookies" },
 };
 
-import { Logo } from "@/components/Logo";
+import { LegalLayout } from "@/components/LegalLayout";
 
 function Section({
   title,
@@ -17,9 +17,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-neutral-100 pt-6">
-      <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
-      <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-neutral-600">
+    <section>
+      <h2 className="mt-10 text-[0.8125rem] font-semibold uppercase tracking-wide text-neutral-900">
+        {title}
+      </h2>
+      <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-neutral-700">
         {children}
       </div>
     </section>
@@ -36,7 +38,7 @@ function SubSection({
   return (
     <div className="mt-4">
       <h3 className="text-sm font-semibold text-neutral-800">{title}</h3>
-      <div className="mt-2 flex flex-col gap-2 text-sm leading-relaxed text-neutral-600">
+      <div className="mt-2 flex flex-col gap-2 text-sm leading-relaxed text-neutral-700">
         {children}
       </div>
     </div>
@@ -45,25 +47,23 @@ function SubSection({
 
 export default function CookiesPage() {
   return (
-    <div className="min-h-screen w-full bg-neutral-50">
-      <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-        <Link href="/">
-          <Logo />
-        </Link>
-
-        <h1 className="mt-6">Política de Cookies</h1>
-        <p className="mt-2 text-sm text-neutral-500">Última revisión: 26 de julio de 2026</p>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-600">
+    <LegalLayout
+      title="Política de Cookies"
+      updated="26 de julio de 2026"
+      current="/cookies"
+    >
+        <p className="mt-3 text-sm leading-relaxed text-neutral-700">
           Esta política le ayudará a entender qué cookies y tecnologías de
           seguimiento utilizamos, cómo las utilizamos y qué derechos tiene
           usted al respecto.
         </p>
 
-        <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-8">
           {/* Introducción */}
           <section>
-            <h2 className="text-lg font-semibold text-neutral-900">Introducción</h2>
-            <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-neutral-600">
+            <h2 className="mt-10 text-[0.8125rem] font-semibold uppercase tracking-wide text-neutral-900">
+              Introducción
+            </h2>
+            <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-neutral-700">
               <p>
                 El presente documento informa a los Usuarios sobre las
                 tecnologías que ayudan a esta Aplicación a lograr los fines
@@ -222,7 +222,6 @@ export default function CookiesPage() {
               </p>
             </SubSection>
           </Section>
-        </div>
 
         <p className="mt-6 text-xs text-neutral-400">
           Para más información sobre el tratamiento de sus datos, consulte
@@ -236,7 +235,6 @@ export default function CookiesPage() {
           </a>
           .
         </p>
-      </div>
-    </div>
+    </LegalLayout>
   );
 }

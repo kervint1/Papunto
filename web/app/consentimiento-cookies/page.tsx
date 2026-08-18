@@ -7,20 +7,16 @@ export const metadata: Metadata = {
   alternates: { canonical: "/consentimiento-cookies" },
 };
 
-import { Logo } from "@/components/Logo";
+import { LegalLayout } from "@/components/LegalLayout";
 
 export default function ConsentimientoCookiesPage() {
   return (
-    <div className="min-h-screen w-full bg-neutral-50">
-      <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-        <Link href="/">
-          <Logo />
-        </Link>
-
-        <h1 className="mt-6">Consentimiento para el uso de cookies</h1>
-        <p className="mt-2 text-sm text-neutral-500">Última revisión: 26 de julio de 2026</p>
-
-        <div className="mt-6 flex flex-col gap-5 rounded-2xl border border-neutral-200 bg-white p-5 text-sm leading-relaxed text-neutral-600 shadow-sm sm:p-8">
+    <LegalLayout
+      title="Consentimiento para el uso de cookies"
+      updated="26 de julio de 2026"
+      current="/consentimiento-cookies"
+    >
+      <div className="flex flex-col gap-5">
           <p>
             <strong>1.</strong> Papunto utiliza cookies para mejorar la
             experiencia de los Usuarios.
@@ -139,14 +135,13 @@ export default function ConsentimientoCookiesPage() {
           </p>
         </div>
 
-        <p className="mt-6 text-xs text-neutral-400">
-          Ante cualquier duda sobre este consentimiento, puede contactarnos en{" "}
-          <a href="mailto:kervint1@gmail.com" className="underline">
-            kervint1@gmail.com
-          </a>
-          .
-        </p>
-      </div>
-    </div>
+      <p className="mt-10 text-xs text-neutral-400">
+        Ante cualquier duda sobre este consentimiento, puede contactarnos en{" "}
+        <a href="mailto:kervint1@gmail.com" className="underline">
+          kervint1@gmail.com
+        </a>
+        .
+      </p>
+    </LegalLayout>
   );
 }
