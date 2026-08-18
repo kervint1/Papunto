@@ -38,67 +38,52 @@ export default function LandingPage() {
       <div className="bg-yellow-400">
         <div className="mx-auto w-full max-w-5xl px-6 pb-12 pt-6 sm:px-8">
           <Logo />
-          <div className="mt-10 grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-            <div>
-              {/* 事前登録の残り枠。希少性が登録の動機になるので最初に見せる。
-                  取得に失敗したら何も出ない（LP自体は成立する） */}
-              <CampaignBadge />
-              <p className="mt-2 inline-block rounded-full bg-white/40 px-3 py-1 text-sm text-neutral-800">
-                🇵🇪 Solo en Perú
-              </p>
-              <h1
-                className="mt-4 text-neutral-900"
-                style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.25 }}
+          {/* 1カラム。埋めるためだけの図版を置かない */}
+          <div className="mt-10 max-w-2xl">
+            {/* 事前登録の残り枠。希少性が登録の動機になるので最初に見せる。
+              取得に失敗したら何も出ない（LP自体は成立する） */}
+            <CampaignBadge />
+            <p className="mt-2 inline-block rounded-full bg-white/40 px-3 py-1 text-sm text-neutral-800">
+              🇵🇪 Solo en Perú
+            </p>
+            <h1
+              className="mt-4 text-neutral-900"
+              style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.25 }}
+            >
+              Completa tareas y
+              <br />
+              recibe <span className="text-white">puntos por Yape</span>
+            </h1>
+            <p className="mt-3 max-w-xl text-neutral-800">
+              Gana puntos completando tareas sencillas como encuestas o
+              registros, y cámbialos por dinero en tu billetera Yape.
+            </p>
+            <p className="mt-3 max-w-xl rounded-2xl bg-white/50 px-4 py-3 text-sm text-neutral-800">
+              <strong>Todavía estamos preparando el lanzamiento.</strong> Las
+              tareas para ganar puntos aún no están disponibles. Mientras
+              tanto, puedes leer nuestras guías para ahorrar y ganar dinero en
+              Perú.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              {/* ブログは公開済みで読める。準備中の間はそちらへ送る */}
+              <Button
+                asChild
+                size="lg"
+                className="h-12 bg-neutral-900 px-8 text-white hover:bg-neutral-800"
               >
-                Completa tareas y
-                <br />
-                recibe <span className="text-white">puntos por Yape</span>
-              </h1>
-              <p className="mt-3 max-w-xl text-neutral-800">
-                Gana puntos completando tareas sencillas como encuestas o
-                registros, y cámbialos por dinero en tu billetera Yape.
-              </p>
-              <p className="mt-3 max-w-xl rounded-2xl bg-white/50 px-4 py-3 text-sm text-neutral-800">
-                <strong>Todavía estamos preparando el lanzamiento.</strong> Las
-                tareas para ganar puntos aún no están disponibles. Mientras
-                tanto, puedes leer nuestras guías para ahorrar y ganar dinero en
-                Perú.
-              </p>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                {/* ブログは公開済みで読める。準備中の間はそちらへ送る */}
-                <Button
-                  asChild
-                  size="lg"
-                  className="h-12 bg-neutral-900 px-8 text-white hover:bg-neutral-800"
-                >
-                  <a href="/blog" onClick={(e) => e.stopPropagation()}>
-                    Leer las guías
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </a>
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-12 border-neutral-900 bg-transparent px-8 text-neutral-900 hover:bg-white/40"
-                >
-                  Crear mi cuenta
-                </Button>
-              </div>
-            </div>
-
-            {/* Hero visual。絵文字ではなくブランドマークを大きく置く */}
-            <div className="hidden justify-center lg:flex">
-              <div className="text-center">
-                <span className="mx-auto flex h-32 w-32 items-center justify-center rounded-[2rem] bg-neutral-900 text-6xl font-semibold text-yellow-400">
-                  P
-                </span>
-                <p className="mt-6 text-neutral-800">
-                  Tareas simples,
-                  <br />
-                  recompensas al toque
-                </p>
-              </div>
+                <a href="/blog" onClick={(e) => e.stopPropagation()}>
+                  Leer las guías
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </a>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 border-neutral-900 bg-transparent px-8 text-neutral-900 hover:bg-white/40"
+              >
+                Crear mi cuenta
+              </Button>
             </div>
           </div>
         </div>
