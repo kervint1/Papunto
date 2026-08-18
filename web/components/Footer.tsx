@@ -13,6 +13,7 @@ const SNS = [
 ];
 
 const LEGAL_LINKS = [
+  { label: "Bases de la campaña", href: "/campana" },
   { label: "Libro de reclamaciones", href: "/reclamaciones" },
   { label: "Términos de uso", href: "/terminos" },
   { label: "Política de privacidad y datos personales", href: "/privacidad" },
