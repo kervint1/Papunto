@@ -23,8 +23,11 @@ export const authOptions: NextAuthOptions = {
      * アカウントの同一性判定）なので、返ってこないと登録できない。
      */
     FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID!,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+      // ⚠️ サーバー側（FastAPI）と**同じ名前**にしてある。NextAuthの慣習では
+      //    FACEBOOK_CLIENT_ID だが、Metaのコンソールには存在しない名前なので、
+      //    探しても見つからない。コンソールの表記（アプリID / app secret）に寄せる
+      clientId: process.env.META_APP_ID!,
+      clientSecret: process.env.META_APP_SECRET!,
       authorization: { params: { scope: "public_profile,email" } },
     }),
     /**
