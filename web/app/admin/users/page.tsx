@@ -29,7 +29,7 @@ export default function AdminUsers() {
 
   return (
     <>
-      <PageTitle title="Usuarios" sub="Busca por correo o nombre" />
+      <PageTitle title="Usuarios" sub="Busca por correo, nombre o celular" />
 
       <form
         onSubmit={(e) => {
@@ -42,7 +42,7 @@ export default function AdminUsers() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="correo@ejemplo.com"
+          placeholder="correo, nombre o 987654321"
           className="w-full max-w-sm rounded-lg border border-neutral-200 px-3 py-2 text-sm"
         />
         <button type="submit" className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white">

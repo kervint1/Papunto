@@ -5,6 +5,18 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { getAdminUser, type AdminUserDetail } from "@/lib/api";
+
+// 台帳のkindを画面の言葉にする。noteがあればそちらを優先する
+const KIND_LABEL: Record<string, string> = {
+  campaign: "Bono de pre-registro",
+  campaign_bonus: "Bono por tareas",
+  referral: "Invitación",
+  offer: "Tarea completada",
+  withdrawal: "Canje por Yape",
+  topup: "Recarga",
+  refund: "Devolución",
+  adjustment: "Ajuste",
+};
 import {
   Card,
   Cell,
@@ -52,9 +64,11 @@ export default function AdminUserDetailPage() {
           </div>
         </Card>
         <Card className="p-4">
-          <div className="text-xs text-neutral-500">N.° de miembro</div>
+          {/* 会員番号は廃止した（IDはURLにあるので十分）。
+              代わりに送金先を出す。不正調査でいちばん見る値 */}
+          <div className="text-xs text-neutral-500">Celular (Yape)</div>
           <div className="mt-1 tabular-nums" style={{ fontSize: "1.5rem" }}>
-            {u.id}
+            {u.phone ?? "—"}
           </div>
         </Card>
         <Card className="p-4">
@@ -62,6 +76,114 @@ export default function AdminUserDetailPage() {
           <div className="mt-1 text-sm">{fmtDate(u.created_at)}</div>
           {u.is_admin && <div className="mt-1 text-xs text-neutral-900">Administrador</div>}
         </Card>
+      </div>
+
+      {/* 事前登録キャンペーンの進み具合。報酬は2段なので、
+          初回だけ受け取って止まっている人が見分けられる必要がある */}
+      <h2 className="mt-8 text-sm text-neutral-500">Campaña de pre-registro</h2>
+      <div className="mt-2 grid gap-3 sm:grid-cols-4">
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">N.° de cupo</div>
+          <div className="mt-1 tabular-nums">
+            #{data.campaign.position}
+            {!data.campaign.within_limit && (
+              <span className="ml-2 text-xs text-red-600">fuera de cupo</span>
+            )}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">Bono inicial</div>
+          <div className="mt-1 text-sm">
+            {data.campaign.reward_granted_at
+              ? fmtDate(data.campaign.reward_granted_at)
+              : "—"}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">Bono por tareas</div>
+          <div className="mt-1 text-sm">
+            {data.campaign.bonus_granted_at
+              ? fmtDate(data.campaign.bonus_granted_at)
+              : "—"}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">Tareas aprobadas</div>
+          <div className="mt-1 tabular-nums">
+            {data.campaign.tasks_completed} / {data.campaign.bonus_required_tasks}
+          </div>
+        </Card>
+      </div>
+
+      {/* 招待。自作自演を疑ったときに「誰が誰を招待したか」を辿る入口 */}
+      <h2 className="mt-8 text-sm text-neutral-500">Invitaciones</h2>
+      <div className="mt-2 grid gap-3 sm:grid-cols-4">
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">Su código</div>
+          <div className="mt-1 font-mono text-sm tracking-widest">
+            {data.referral.code ?? "—"}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">Invitado por</div>
+          <div className="mt-1 text-sm">
+            {data.referral.invited_by_user_id ? (
+              <Link
+                href={`/admin/users/${data.referral.invited_by_user_id}`}
+                className="underline underline-offset-2"
+              >
+                {data.referral.invited_by_email}
+              </Link>
+            ) : (
+              "—"
+            )}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">Invitados</div>
+          <div className="mt-1 tabular-nums">
+            {data.referral.invited_settled} / {data.referral.invited_total}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-neutral-500">Ganado por invitar</div>
+          <div className="mt-1 tabular-nums">{fmtPts(data.referral.earned_points)}</div>
+        </Card>
+      </div>
+
+      {/* ポイント台帳。増減の理由が1件ずつ残っているので、問い合わせ対応の起点になる */}
+      <h2 className="mt-8 text-sm text-neutral-500">Movimientos de puntos</h2>
+      {/* ⚠️ 台帳の合計は残高と一致するはず。ズレは「台帳を書かずに残高を
+          動かした経路がある」という意味なので、必ず目に入る形で出す */}
+      {data.ledger_total !== u.points && (
+        <div className="mt-2 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+          El libro de puntos no cuadra con el saldo. Libro:{" "}
+          <strong>{fmtPts(data.ledger_total)}</strong> · Saldo:{" "}
+          <strong>{fmtPts(u.points)}</strong> · Diferencia:{" "}
+          <strong>{fmtPts(u.points - data.ledger_total)}</strong>
+        </div>
+      )}
+      <div className="mt-2">
+        <TableCard
+          headers={["Fecha", "Concepto", "Puntos", "Referencia"]}
+          empty={data.point_transactions.length === 0}
+        >
+          {data.point_transactions.map((t) => (
+            <Row key={t.id}>
+              <Cell>{fmtDate(t.created_at)}</Cell>
+              <Cell>{t.note || KIND_LABEL[t.kind] || t.kind}</Cell>
+              <Cell>
+                <span className={t.points < 0 ? "text-red-600" : "text-neutral-900"}>
+                  {t.points > 0 ? "+" : ""}
+                  {fmtPts(t.points)}
+                </span>
+              </Cell>
+              <Cell className="text-neutral-400">
+                {t.reference_type ? `${t.reference_type} ${t.reference_id ?? ""}` : "—"}
+              </Cell>
+            </Row>
+          ))}
+        </TableCard>
       </div>
 
       <h2 className="mt-8 text-sm text-neutral-500">Conversiones (últimas 50)</h2>

@@ -296,6 +296,8 @@ export interface AdminStats {
 export interface AdminUser {
   id: number;
   email: string;
+  /** 送金先。不正調査で見る */
+  phone: string | null;
   name: string | null;
   avatar_url: string | null;
   points: number;
@@ -380,11 +382,44 @@ export interface AdminLog {
   created_at: string;
 }
 
+export interface AdminPointTransaction {
+  id: number;
+  points: number;
+  kind: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface AdminUserCampaign {
+  position: number;
+  within_limit: boolean;
+  reward_granted_at: string | null;
+  bonus_granted_at: string | null;
+  tasks_completed: number;
+  bonus_required_tasks: number;
+}
+
+export interface AdminUserReferral {
+  code: string | null;
+  invited_by_email: string | null;
+  invited_by_user_id: number | null;
+  invited_total: number;
+  invited_settled: number;
+  earned_points: number;
+}
+
 export interface AdminUserDetail {
   user: AdminUser;
   postbacks: AdminPostback[];
   withdrawals: AdminWithdrawal[];
   topups: AdminTopUp[];
+  point_transactions: AdminPointTransaction[];
+  /** 台帳の合計。user.points と一致するはず。ズレたら記録漏れの経路がある */
+  ledger_total: number;
+  campaign: AdminUserCampaign;
+  referral: AdminUserReferral;
 }
 
 function qs(params: Record<string, string | number | boolean | undefined>) {

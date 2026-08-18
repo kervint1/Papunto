@@ -346,3 +346,87 @@ def test_campaign_settings_cannot_go_below_granted(client, session, admin):
     )
     assert res.status_code == 400
     assert res.json()["error"]["code"] == "SLOT_LIMIT_BELOW_GRANTED"
+
+
+# ------------------------------------------------- ユーザー詳細（台帳・キャンペーン・招待）
+
+def test_user_detail_includes_ledger(client, session, admin, user):
+    """増減の理由が管理側から見えること。問い合わせ対応の起点になる"""
+    from services import campaign_service
+
+    campaign_service.grant_reward(session, user)
+    session.commit()
+
+    body = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()
+    tx = body["point_transactions"]
+    assert [t["kind"] for t in tx] == ["campaign"]
+    assert tx[0]["points"] == 300
+    assert tx[0]["note"] == "Bono de pre-registro"
+
+
+def test_user_detail_reports_ledger_drift(client, session, admin, user):
+    """台帳の合計と残高がずれたら気づけること。
+
+    ずれは「台帳を書かずに残高を動かした経路がある」という意味なので、
+    見えないと直す機会がない
+    """
+    from services import campaign_service
+
+    campaign_service.grant_reward(session, user)
+    session.commit()
+
+    body = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()
+    assert body["ledger_total"] == body["user"]["points"]  # 一致が正常
+
+    # 台帳を書かずに残高だけ動かす（本来あってはならない操作）
+    user.points += 999
+    session.add(user)
+    session.commit()
+
+    body = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()
+    assert body["ledger_total"] != body["user"]["points"]
+
+
+def test_user_detail_includes_campaign_progress(client, session, user, admin):
+    """先着番号は登録順（users.id）で決まるので、user を先に作る"""
+    from services import campaign_service
+
+    campaign_service.grant_reward(session, user)
+    session.commit()
+
+    c = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()["campaign"]
+    assert c["position"] == 1
+    assert c["within_limit"] is True
+    assert c["reward_granted_at"] is not None
+    assert c["bonus_granted_at"] is None  # タスク未完了
+    assert c["tasks_completed"] == 0
+    assert c["bonus_required_tasks"] == 1
+
+
+def test_user_detail_includes_referral(client, session, admin, user):
+    """自作自演を疑ったときに「誰が誰を招待したか」を辿れること"""
+    import datetime as dt
+
+    from services import referral_service
+    from tests.conftest import set_campaign
+
+    set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1))
+    code = referral_service.ensure_code(session, user)
+
+    invitee = User(google_id="g-inv-d", email="inv-d@example.com", name="Inv")
+    session.add(invitee)
+    session.commit()
+    session.refresh(invitee)
+    referral_service.claim(session, invitee, code)
+
+    r = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()["referral"]
+    assert r["code"] == code
+    assert r["invited_total"] == 1
+    assert r["invited_settled"] == 1
+    assert r["earned_points"] == 200
+    assert r["invited_by_email"] is None
+
+    # 招待された側からは「誰に招待されたか」が見える
+    r2 = client.get(f"/api/v1/admin/users/{invitee.id}", headers=auth(admin)).json()["referral"]
+    assert r2["invited_by_email"] == user.email
+    assert r2["invited_by_user_id"] == user.id

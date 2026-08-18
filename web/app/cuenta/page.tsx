@@ -85,28 +85,6 @@ function TopUpStatusBadge({ status }: { status: TopUp["status"] }) {
   return <Badge className="bg-amber-100 text-amber-700">Procesando</Badge>;
 }
 
-/** 会員番号のコピーボタン。押すと一時的にチェックマークへ変わる */
-function CopyNumber({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <button
-      type="button"
-      aria-label="Copiar número de miembro"
-      onClick={() => {
-        navigator.clipboard?.writeText(value).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-      className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2 py-1 text-xs text-neutral-500 transition-colors hover:bg-neutral-50"
-    >
-      {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
-      {copied ? "Copiado" : "Copiar"}
-    </button>
-  );
-}
-
 function EmptyRow({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-xl bg-neutral-50 px-4 py-10 text-center text-sm text-neutral-400">
@@ -202,8 +180,6 @@ export default function CuentaPage() {
     [movements, filter, month]
   );
 
-  const memberNumber = me ? String(me.id).padStart(8, "0") : "";
-
   return (
     <div className="min-h-screen w-full bg-neutral-50">
       <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
@@ -219,11 +195,6 @@ export default function CuentaPage() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-3 border-t border-neutral-100 pt-3">
-            <span className="text-xs text-neutral-500">N.° de miembro</span>
-            <span className="tabular-nums text-sm text-neutral-900">{memberNumber || "—"}</span>
-            {memberNumber && <CopyNumber value={memberNumber} />}
-          </div>
         </div>
 
         {/* 2. ポイント */}

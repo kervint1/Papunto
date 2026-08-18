@@ -36,6 +36,8 @@ class AdminUserRead(BaseModel):
     email: str
     name: Optional[str] = None
     avatar_url: Optional[str] = None
+    # 送金先。不正調査（同じ番号での重複登録）でいちばん見る値
+    phone: Optional[str] = None
     points: int
     is_admin: bool
     created_at: datetime
@@ -157,11 +159,50 @@ class AdminLogList(BaseModel):
     page: Page
 
 
+class AdminPointTransactionRead(BaseModel):
+    id: int
+    points: int  # 符号つき。獲得は正、消費は負
+    kind: str
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    note: Optional[str] = None
+    created_at: datetime
+
+
+class AdminUserCampaign(BaseModel):
+    """キャンペーン報酬の状況。2段のどこまで進んだかを見る"""
+
+    position: int  # 登録順の番号
+    within_limit: bool
+    reward_granted_at: Optional[datetime] = None  # 初回分
+    bonus_granted_at: Optional[datetime] = None  # タスク後の残り
+    tasks_completed: int
+    bonus_required_tasks: int
+
+
+class AdminUserReferral(BaseModel):
+    """招待の状況。自作自演を疑ったときに辿る"""
+
+    code: Optional[str] = None
+    invited_by_email: Optional[str] = None  # 誰の招待で入ったか
+    invited_by_user_id: Optional[int] = None
+    invited_total: int  # 紐づいた人数
+    invited_settled: int  # 成立した人数
+    earned_points: int
+
+
 class AdminUserDetail(BaseModel):
     user: AdminUserRead
     postbacks: list[AdminPostbackRead]
     withdrawals: list[AdminWithdrawalRead]
     topups: list[AdminTopUpRead]
+
+    point_transactions: list[AdminPointTransactionRead]
+    # ⚠️ 台帳の合計。`user.points` と一致するはず。
+    #    ずれていたら、台帳を書かずに残高を動かした経路がある
+    ledger_total: int
+    campaign: AdminUserCampaign
+    referral: AdminUserReferral
 
 
 class AdminCampaignSettings(BaseModel):

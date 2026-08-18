@@ -15,6 +15,8 @@ from errors import ApiError
 from models import (
     AdminLog,
     CampaignSetting,
+    PointTransaction,
+    Referral,
     Complaint,
     Post,
     Postback,
@@ -25,6 +27,9 @@ from models import (
 )
 from schemas.admin import (
     AdminCampaignSettings,
+    AdminPointTransactionRead,
+    AdminUserCampaign,
+    AdminUserReferral,
     AdminCampaignSettingsUpdate,
     AdminComplaintList,
     AdminComplaintRead,
@@ -46,7 +51,7 @@ from schemas.admin import (
     WithdrawalActionBody,
 )
 from schemas.offer import OfferList, OfferRead
-from services import admin_service, campaign_service, points_service
+from services import admin_service, campaign_service, points_service, referral_service
 from services.cpalead_service import CPALeadError, CPALeadService
 
 # 依存をルーター単位で付ける。個別のエンドポイントで書き忘れても認可が外れないようにする
@@ -258,7 +263,9 @@ def list_users(
     stmt = select(User)
     if q:
         like = f"%{q}%"
-        stmt = stmt.where(User.email.ilike(like) | User.name.ilike(like) | User.phone.ilike(like))
+        stmt = stmt.where(
+            User.email.ilike(like) | User.name.ilike(like) | User.phone.ilike(like)
+        )
     stmt = stmt.order_by(User.created_at.desc())
     rows, meta = _paginate(session, stmt, page, per_page)
     return AdminUserList(
@@ -282,8 +289,37 @@ def get_user(user_id: int, session: Session = Depends(get_session)):
         select(TopUp).where(TopUp.user_id == user_id).order_by(TopUp.created_at.desc()).limit(50)
     ).all()
 
+    # ポイント台帳。増減の理由を1件ずつ持っているので、問い合わせ対応の起点になる
+    ledger = points_service.history(session, user)
+
+    slot = campaign_service.slot_of(session, user)
+    done, required = campaign_service.bonus_progress(session, user)
+
+    inviter = referral_service.invited_by(session, user)
+
     return AdminUserDetail(
         user=AdminUserRead.model_validate(user, from_attributes=True),
+        point_transactions=[
+            AdminPointTransactionRead.model_validate(t, from_attributes=True)
+            for t in ledger
+        ],
+        ledger_total=points_service.ledger_total(session, user),
+        campaign=AdminUserCampaign(
+            position=slot.position,
+            within_limit=slot.within_limit,
+            reward_granted_at=user.campaign_reward_granted_at,
+            bonus_granted_at=user.campaign_bonus_granted_at,
+            tasks_completed=done,
+            bonus_required_tasks=required,
+        ),
+        referral=AdminUserReferral(
+            code=user.referral_code,
+            invited_by_email=inviter.email if inviter else None,
+            invited_by_user_id=inviter.id if inviter else None,
+            invited_total=referral_service.total_count(session, user),
+            invited_settled=referral_service.settled_count(session, user),
+            earned_points=referral_service.earned_points(session, user),
+        ),
         postbacks=[
             AdminPostbackRead.model_validate({**r.model_dump(), "user_email": user.email}) for r in postbacks
         ],
