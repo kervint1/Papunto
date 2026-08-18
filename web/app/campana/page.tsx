@@ -141,8 +141,10 @@ export default async function CampanaPage() {
       </ul>
       <p className="mt-3">
         Los {t.initial} puntos iniciales por sí solos no alcanzan el mínimo
-        requerido para canjear. Las tareas estarán disponibles a partir del{" "}
-        {longDate(t.opensAt)}.
+        requerido para canjear. {/* ⚠️ タスクの提供開始日を約束しない。
+        提供はASPの審査結果に左右され、こちらで決められないため。
+        交換の開放日（下の節）はこちらで決められるので日付で書いてよい */}
+        Te avisaremos por correo cuando las tareas estén disponibles.
       </p>
       <p className="mt-3">
         Los puntos no son dinero ni instrumento financiero. Se convierten a
