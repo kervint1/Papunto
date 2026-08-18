@@ -13,12 +13,12 @@ type Item = { href: string; label: string; sub?: string };
 const MAIN: Item[] = [
   { href: "/cuenta", label: "Mi cuenta" },
   { href: "/cuenta", label: "Historial de puntos", sub: "Revisa el estado de cada tarea" },
-  { href: "/exchange", label: "Canjear puntos", sub: "Recibe tu dinero en Yape" },
-  { href: "/exchange/recarga", label: "Recarga de celular", sub: "Claro, Movistar, Entel y Bitel" },
+  { href: "/canjear", label: "Canjear puntos", sub: "Recibe tu dinero en Yape" },
+  { href: "/canjear/recarga", label: "Recarga de celular", sub: "Claro, Movistar, Entel y Bitel" },
 ];
 
 const EARN: Item[] = [
-  { href: "/home", label: "Tareas disponibles", sub: "Completa tareas y gana puntos" },
+  { href: "/tareas", label: "Tareas disponibles", sub: "Completa tareas y gana puntos" },
 ];
 
 const LEGAL: Item[] = [

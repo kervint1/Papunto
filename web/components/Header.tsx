@@ -11,10 +11,10 @@ import { Logo } from "@/components/Logo";
 
 // アイコン付きのグローバルナビ。主要な貯める・使う導線を常時出しておく
 const NAV: { href: string; label: string; icon: LucideIcon; badge?: string }[] = [
-  { href: "/home", label: "Tareas", icon: ListChecks, badge: "Empieza aquí" },
+  { href: "/tareas", label: "Tareas", icon: ListChecks, badge: "Empieza aquí" },
   { href: "/cuenta", label: "Mis puntos", icon: Wallet },
-  { href: "/exchange", label: "Canjear", icon: ArrowLeftRight },
-  { href: "/exchange/recarga", label: "Recarga", icon: Smartphone },
+  { href: "/canjear", label: "Canjear", icon: ArrowLeftRight },
+  { href: "/canjear/recarga", label: "Recarga", icon: Smartphone },
 ];
 
 export function Header({
@@ -34,7 +34,7 @@ export function Header({
     <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white">
       {/* 1段目: ロゴ / アカウント / メニュー */}
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <Link href="/home" aria-label="Inicio">
+        <Link href="/tareas" aria-label="Inicio">
           <Logo />
         </Link>
 

@@ -13,7 +13,17 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/home", "/cuenta", "/wallet", "/exchange", "/admin", "/api/"],
+      disallow: [
+        "/tareas",
+        "/cuenta",
+        "/canjear",
+        "/admin",
+        "/api/",
+        // 旧URL（リダイレクトで受けている）。転送先も同様に除外済み
+        "/home",
+        "/exchange",
+        "/wallet",
+      ],
     },
     // robots.txtはドメインルートにしか置けないため、メディア側のsitemapもここに登録する
     sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/blog/sitemap.xml`],

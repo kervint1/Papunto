@@ -16,7 +16,7 @@ import { ApiError, createWithdrawal } from "@/lib/api";
 import { getDestination } from "@/lib/exchangeDestinations";
 
 export default function ExchangeDestinationPage() {
-  const { destination: destinationId } = useParams<{ destination: string }>();
+  const { destino: destinationId } = useParams<{ destino: string }>();
   const destination = getDestination(destinationId);
   const router = useRouter();
   const { me, token, refresh } = useMe();
@@ -56,7 +56,7 @@ export default function ExchangeDestinationPage() {
         <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
         <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
           <Link
-            href="/exchange"
+            href="/canjear"
             className="flex items-center gap-2 text-sm text-neutral-500 transition-colors hover:text-neutral-900"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -76,7 +76,7 @@ export default function ExchangeDestinationPage() {
 
       <main className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
         <Link
-          href="/exchange"
+          href="/canjear"
           className="flex items-center gap-2 text-sm text-neutral-500 transition-colors hover:text-neutral-900"
         >
           <ArrowLeft className="h-4 w-4" />

@@ -30,10 +30,10 @@ export default function LandingPage() {
   // ログイン済みならLPを見せずにHomeへ送る。
   // ルートに戻るたびログインを求められるように見えるのを防ぐ
   useEffect(() => {
-    if (status === "authenticated") router.replace("/home");
+    if (status === "authenticated") router.replace("/tareas");
   }, [status, router]);
 
-  const goLogin = () => router.push(status === "authenticated" ? "/home" : "/login");
+  const goLogin = () => router.push(status === "authenticated" ? "/tareas" : "/ingresar");
 
   return (
     <div

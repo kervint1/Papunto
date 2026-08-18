@@ -224,7 +224,7 @@ export default function CuentaPage() {
               asChild
               className="mt-3 h-12 w-full bg-neutral-900 text-white hover:bg-neutral-800"
             >
-              <Link href="/exchange">
+              <Link href="/canjear">
                 <ArrowLeftRight className="mr-1 h-4 w-4" />
                 Canjear puntos
               </Link>

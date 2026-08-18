@@ -114,7 +114,7 @@ async function apiFetch<T>(
     // 画面になるので、セッションを畳んでログインし直させる
     if (res.status === 401 && typeof window !== "undefined") {
       const { signOut } = await import("next-auth/react");
-      void signOut({ callbackUrl: "/login" });
+      void signOut({ callbackUrl: "/ingresar" });
     }
     throw new ApiError(
       body?.error ?? { code: "UNKNOWN", message: "Error de conexión" }

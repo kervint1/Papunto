@@ -108,7 +108,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [denied, setDenied] = useState(false);
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
+    if (status === "unauthenticated") router.replace("/ingresar");
   }, [status, router]);
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div>
           <ClipboardList className="mx-auto h-8 w-8 text-neutral-400" />
           <p className="mt-3 text-neutral-900">No tienes permiso para ver esta sección.</p>
-          <Link href="/home" className="mt-2 inline-block text-sm text-yellow-600 underline">
+          <Link href="/tareas" className="mt-2 inline-block text-sm text-yellow-600 underline">
             Volver al inicio
           </Link>
         </div>
@@ -186,7 +186,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-neutral-800 px-4 py-3">
-          <Link href="/home" className="text-xs text-neutral-500 hover:text-white">
+          <Link href="/tareas" className="text-xs text-neutral-500 hover:text-white">
             ← Volver a Papunto
           </Link>
         </div>

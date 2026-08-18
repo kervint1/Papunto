@@ -14,9 +14,9 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: "/login",
+    signIn: "/ingresar",
     // 失敗も /login に戻し、?error= で理由を出す（既定の /api/auth/error は素っ気ないため）
-    error: "/login",
+    error: "/ingresar",
   },
   callbacks: {
     async jwt({ token, account }) {

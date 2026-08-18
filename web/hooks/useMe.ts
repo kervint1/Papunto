@@ -16,7 +16,7 @@ export function useValidSession() {
   const broken = status === "authenticated" && !session?.apiToken;
 
   useEffect(() => {
-    if (broken) signOut({ callbackUrl: "/login?error=SessionExpired" });
+    if (broken) signOut({ callbackUrl: "/ingresar?error=SessionExpired" });
   }, [broken]);
 
   return { session, status, token: session?.apiToken, broken };
@@ -30,7 +30,7 @@ export function useMe() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.replace("/login");
+      router.replace("/ingresar");
       return;
     }
     if (token) {
