@@ -31,6 +31,8 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: "10080"
       FRONTEND_ORIGIN: http://localhost:3001   # webの公開ポートに合わせる（CORS許可）
       RELOADLY_SANDBOX: "true"
+      # 開発用。メールを送らずログにリンクを出す。**本番では絶対に有効にしない**
+      MAGIC_LINK_DEV_ECHO: "true"
       CPALEAD_MOCK: "true"
       PUBLIC_BASE_URL: http://localhost:8000   # モックのオファーURL組み立てに使う（ブラウザから開ける必要がある）
     depends_on:

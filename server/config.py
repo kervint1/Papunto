@@ -56,6 +56,18 @@ MIN_WITHDRAWAL_POINTS = int(os.getenv("MIN_WITHDRAWAL_POINTS", "500"))  # = S/ 5
 
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
+# --- メール送信（マジックリンクのログイン） ---
+# Gmailは通常のパスワードでは送れない。アプリパスワードを使う
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+MAIL_FROM = os.getenv("MAIL_FROM", "")
+
+# ⚠️ 開発用。true にすると**メールを送らずログにリンクを出す**。
+#    本番で有効にするとログを見られる人が誰でもログインできる
+MAGIC_LINK_DEV_ECHO = os.getenv("MAGIC_LINK_DEV_ECHO", "false").lower() in ("1", "true", "yes")
+
 # Reloadly: ポイント→携帯キャリア（Claro/Movistar/Entel/Bitel）チャージ交換
 RELOADLY_CLIENT_ID = os.getenv("RELOADLY_CLIENT_ID", "")
 RELOADLY_CLIENT_SECRET = os.getenv("RELOADLY_CLIENT_SECRET", "")

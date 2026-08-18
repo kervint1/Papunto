@@ -6,6 +6,7 @@ import { signIn, useSession } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
+import { MagicLinkForm } from "@/components/MagicLinkForm";
 
 // NextAuthが ?error= で返す理由。既定のメッセージは英語で素っ気ないため差し替える
 const ERROR_MESSAGES: Record<string, string> = {
@@ -44,6 +45,16 @@ function LoginContent() {
       )}
 
       <div className="mt-10 flex flex-col gap-4">
+        {/* ⚠️ メールを先に置く。**Facebookのアプリ内ブラウザではGoogleが動かない**
+            （403 disallowed_useragent）。集客はFacebookグループなので、
+            そこから来た人が最初に見るべきなのはこちら */}
+        <MagicLinkForm />
+
+        <div className="flex items-center gap-3 text-xs text-neutral-400">
+          <span className="h-px flex-1 bg-neutral-200" />o
+          <span className="h-px flex-1 bg-neutral-200" />
+        </div>
+
         <Button
           variant="outline"
           className="h-12 w-full gap-3 border-neutral-200"

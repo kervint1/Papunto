@@ -761,3 +761,17 @@ export function getPointHistory(
 ): Promise<{ transactions: PointTransaction[]; ledger_total: number }> {
   return apiFetch("/api/v1/points", token);
 }
+
+/** 認証不要。ログイン用のリンクをメールで送る */
+export async function requestMagicLink(email: string): Promise<{ sent: boolean }> {
+  const res = await fetch(`${API_URL}/api/v1/auth/magic-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(body?.error ?? { code: "UNKNOWN", message: "Error de conexión" });
+  }
+  return res.json();
+}

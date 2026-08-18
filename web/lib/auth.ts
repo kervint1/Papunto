@@ -1,4 +1,5 @@
 import type { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
 // サーバー側（NextAuthコールバック内）からFastAPIを呼ぶときのURL。
@@ -12,6 +13,35 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
+    /**
+     * メールのマジックリンク。
+     *
+     * NextAuth の EmailProvider は使わない。あれはDBアダプタを要求するが、
+     * ここは自前JWT＋FastAPIの構成なので噛み合わない。トークンの発行と
+     * 検証はFastAPI側で完結させ、ここは**検証済みトークンを
+     * セッションに変える**役だけを持つ。
+     */
+    CredentialsProvider({
+      id: "magic-link",
+      name: "Magic Link",
+      credentials: { token: { type: "text" } },
+      async authorize(credentials) {
+        if (!credentials?.token) return null;
+
+        const res = await fetch(`${apiUrl}/api/v1/auth/magic-link/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: credentials.token }),
+        });
+        if (!res.ok) return null;
+
+        const data = await res.json();
+        if (!data.access_token) return null;
+
+        // id は NextAuth が要求する。apiToken を jwt コールバックへ渡す
+        return { id: "magic-link", apiToken: data.access_token };
+      },
+    }),
   ],
   pages: {
     signIn: "/ingresar",
@@ -19,7 +49,13 @@ export const authOptions: NextAuthOptions = {
     error: "/ingresar",
   },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, user }) {
+      // マジックリンク経由。authorize が返した apiToken をそのまま載せる
+      if (user && "apiToken" in user) {
+        token.apiToken = (user as { apiToken?: string }).apiToken;
+        return token;
+      }
+
       // 初回サインイン時: GoogleのIDトークンをFastAPIに渡し、自前JWTを受け取る。
       // 2回目以降のjwtコールバックでは account が無く、token.apiToken が引き継がれる
       if (!account?.id_token) return token;
