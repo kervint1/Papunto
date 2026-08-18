@@ -33,9 +33,6 @@ services:
       RELOADLY_SANDBOX: "true"
       # 開発用。メールを送らずログにリンクを出す。**本番では絶対に有効にしない**
       MAGIC_LINK_DEV_ECHO: "true"
-      # Facebookログイン。papunto-sns と同じMetaアプリでよい
-      META_APP_ID: "${META_APP_ID:-}"
-      META_APP_SECRET: "${META_APP_SECRET:-}"
       CPALEAD_MOCK: "true"
       PUBLIC_BASE_URL: http://localhost:8000   # モックのオファーURL組み立てに使う（ブラウザから開ける必要がある）
     depends_on:
