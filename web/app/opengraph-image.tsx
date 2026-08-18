@@ -31,11 +31,17 @@ export default function OpengraphImage() {
               alignItems: "center",
               justifyContent: "center",
               fontSize: 40,
+              fontWeight: 600,
+              color: "#171717",
             }}
           >
-            💰
+            P
           </div>
-          <div style={{ fontSize: 44, color: "#171717" }}>Papunto</div>
+          {/* punto＝点。ブランド名の意味に合わせて黄色の丸を添える */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div style={{ fontSize: 44, color: "#171717" }}>Papunto</div>
+            <div style={{ width: 12, height: 12, borderRadius: 999, background: "#fff" }} />
+          </div>
         </div>
 
         {/* next/og は子が複数ある要素に明示的な display を要求する */}

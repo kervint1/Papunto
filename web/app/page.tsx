@@ -87,11 +87,13 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hero visual */}
+            {/* Hero visual。絵文字ではなくブランドマークを大きく置く */}
             <div className="hidden justify-center lg:flex">
-              <div className="rounded-3xl bg-white/50 p-8 text-center shadow-sm">
-                <span style={{ fontSize: "5rem", lineHeight: 1 }}>💸</span>
-                <p className="mt-4 text-neutral-800">
+              <div className="text-center">
+                <span className="mx-auto flex h-32 w-32 items-center justify-center rounded-[2rem] bg-neutral-900 text-6xl font-semibold text-yellow-400">
+                  P
+                </span>
+                <p className="mt-6 text-neutral-800">
                   Tareas simples,
                   <br />
                   recompensas al toque
@@ -126,7 +128,7 @@ export default function LandingPage() {
         <div className="mt-10 rounded-2xl bg-neutral-900 p-8 text-center text-white">
           <p className="text-sm text-neutral-300">Así funcionará Papunto</p>
           <p style={{ fontSize: "1.5rem" }} className="mt-1">
-            cuando lancemos 💸
+            cuando lancemos
           </p>
           <p className="mx-auto mt-3 max-w-md text-sm text-neutral-300">
             Aún no puedes ganar puntos. Estamos preparando el catálogo de tareas
