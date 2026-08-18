@@ -274,6 +274,9 @@ export interface AdminStats {
   postbacks_pending: number;
   postback_logs_unverified_7d: number;
   posts_draft: number;
+  /** 契約前は true が正しい。公開時に false へ切り替える */
+  cpalead_mock: boolean;
+  reloadly_sandbox: boolean;
 }
 
 export interface AdminUser {

@@ -25,6 +25,11 @@ class AdminStats(BaseModel):
     postback_logs_unverified_7d: int
     posts_draft: int = 0
 
+    # 外部連携が「開発用の設定」のまま本番に出ていないかを、管理画面を開くたびに
+    # 目に入る形で出す。切り替え忘れはエラーにならないので、気づく手段が要る
+    cpalead_mock: bool = True
+    reloadly_sandbox: bool = True
+
 
 class AdminUserRead(BaseModel):
     id: int

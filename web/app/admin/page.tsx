@@ -49,6 +49,24 @@ export default function AdminDashboard() {
     <>
       <PageTitle title="Dashboard" sub="Estado general de la operación" />
 
+      {/* 外部連携が開発用の設定のままかを常に見せる。
+          契約前は mock/sandbox が正しい設定なので、値そのものを出して
+          判断できるようにする。切り替え忘れはエラーにならないため */}
+      {stats && (stats.cpalead_mock || stats.reloadly_sandbox) && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="font-medium">Integraciones en modo de prueba:</span>{" "}
+          {[
+            stats.cpalead_mock && "ofertas (CPALead mock)",
+            stats.reloadly_sandbox && "recargas (Reloadly sandbox)",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          <span className="ml-1 text-amber-700">
+            — correcto antes de firmar. Cambiar al publicar el servicio.
+          </span>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           label="Canjes por procesar"

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+import config
 from database import get_session
 from dependencies import require_admin
 from errors import ApiError
@@ -108,6 +109,11 @@ def stats(session: Session = Depends(get_session)):
             PostbackLog, PostbackLog.verified == False, PostbackLog.received_at >= week_ago  # noqa: E712
         ),
         posts_draft=count(Post, Post.status == "draft"),
+        # ⚠️ 契約前は true が正しい設定。false にすると存在しないAPIを叩きに行く。
+        #    危険なのは「サービスを公開したのに true のまま」というズレなので、
+        #    値そのものを見せて判断できるようにする
+        cpalead_mock=config.CPALEAD_MOCK,
+        reloadly_sandbox=config.RELOADLY_SANDBOX,
     )
     _stats_cache["value"] = result
     _stats_cache["at"] = time.time()
