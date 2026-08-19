@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { CampaignCard } from "@/components/CampaignCard";
 import { InviteCard } from "@/components/InviteCard";
+import { PhoneReadyCard } from "@/components/PhoneReadyCard";
 import { InviteCodeEntry } from "@/components/InviteCodeEntry";
 import { Header } from "@/components/Header";
 import { Progress } from "@/components/ui/progress";
@@ -163,6 +164,11 @@ export default function HomePage() {
         {/* 招待。案件がまだ0件なので、いま画面上で唯一「やれること」になる */}
         <div className="mt-4">
           <InviteCard data={referral} />
+        </div>
+
+        {/* 交換の準備。任意だが、招待の成立条件がこれなので経路が要る */}
+        <div className="mt-4">
+          <PhoneReadyCard token={token} />
         </div>
 
         {/* Tareas: Monlix las sirve en un iframe; con CPALead pintamos la lista nosotros */}

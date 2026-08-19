@@ -174,8 +174,8 @@ export default async function CampanaPage() {
           {t.referralMax}.
         </li>
         <li>
-          A partir del {longDate(t.opensAt)}, el premio se entrega cuando la
-          persona invitada registra su número de celular.
+          El premio se entrega cuando la persona invitada registra su número de
+          celular para el canje. Registrarse no es suficiente.
         </li>
       </ul>
       {/* 期間限定であることを明示する。後で金額を下げるときに

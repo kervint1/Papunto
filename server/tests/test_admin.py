@@ -410,7 +410,6 @@ def test_user_detail_includes_referral(client, session, admin, user):
     from services import referral_service
     from tests.conftest import set_campaign
 
-    set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1))
     code = referral_service.ensure_code(session, user)
 
     invitee = User(provider_user_id="g-inv-d", email="inv-d@example.com", name="Inv")
@@ -418,6 +417,8 @@ def test_user_detail_includes_referral(client, session, admin, user):
     session.commit()
     session.refresh(invitee)
     referral_service.claim(session, invitee, code)
+    # 成立は招待された人が電話番号を登録したとき
+    client.post("/api/v1/phone", headers=auth(invitee), json={"phone": "987654321"})
 
     r = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()["referral"]
     assert r["code"] == code

@@ -708,8 +708,8 @@ export interface ReferralMe {
   settled: number;
   earned_points: number;
   max_per_user: number;
-  /** 事前登録中は「登録した時点」で成立する。文言の出し分けに使う */
-  settles_on_registration: boolean;
+  /** 招待したが、まだ成立していない件数（相手の電話番号登録待ち） */
+  pending: number;
   /** 自分を招待した人の名前。未招待なら null */
   invited_by: string | null;
   /** コードを手入力できる状態か */

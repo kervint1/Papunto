@@ -11,7 +11,7 @@ from dependencies import get_current_user
 from errors import ApiError
 from models import TopUp, User
 from schemas.topup import OperatorDetectRead, TopUpCreate, TopUpList, TopUpRead
-from services import points_service
+from services import points_service, verification_service
 from services.reloadly_service import ReloadlyError, ReloadlyService
 
 router = APIRouter(prefix="/api/v1/topups", tags=["topups"])
@@ -64,6 +64,16 @@ def create_topup(
 ):
     if not PHONE_PATTERN.match(body.phone_number):
         raise ApiError(422, "INVALID_PHONE", "Número inválido (9 dígitos, empieza con 9)")
+    # ⚠️ 携帯チャージは本人との紐づきが無い（番号さえあれば届く）。
+    #    Yapeでの送金を1回通していれば、そこでDNIに紐づいた本人だと
+    #    確かめられているので開放する
+    if not verification_service.can_use_destination(session, user, "recarga"):
+        raise ApiError(
+            403,
+            "YAPE_VERIFICATION_REQUIRED",
+            "Primero cobra una vez por Yape. Después podrás usar esta opción.",
+        )
+
     if body.points < config.MIN_WITHDRAWAL_POINTS:
         raise ApiError(422, "BELOW_MINIMUM", f"El mínimo es {config.MIN_WITHDRAWAL_POINTS:,} pts")
     if body.points % config.POINTS_PER_SOL != 0:

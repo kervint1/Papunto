@@ -60,12 +60,12 @@ def test_referral_requires_auth(client):
 
 # ---------------------------------------------------------------- 適用と成立
 
-def test_claim_settles_immediately_during_pre_registration(client, session, inviter):
-    """事前登録の期間中は登録した時点で成立させる。
+def test_claim_alone_does_not_settle(client, session, inviter):
+    """登録しただけでは成立しない。
 
-    ここで成立させないと、集客したいまさにその期間に報酬が1件も出ない
+    成立させると、**メールを10個作って自分で自分を招待するだけ**で報酬が
+    積み上がる。マジックリンクがあるので電話番号もGoogleアカウントも要らない
     """
-    set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1))
     code = referral_service.ensure_code(session, inviter)
     invitee = make_user(session, "invitee")
 
@@ -73,19 +73,14 @@ def test_claim_settles_immediately_during_pre_registration(client, session, invi
     assert res.status_code == 200
 
     session.refresh(inviter)
-    assert inviter.points == 200
+    assert inviter.points == 0
 
     referral = session.exec(select(Referral)).one()
-    assert referral.settled_at is not None
-    assert referral.reward_points == 200
+    assert referral.settled_at is None
 
 
-def test_claim_waits_for_phone_after_launch(client, session, inviter):
-    """交換が開いた後は電話番号の登録まで成立させない。
-
-    登録だけで報酬が出続けると「登録して使わない人」を招待する動機が残る
-    """
-    set_campaign(session, withdrawals_open_at=dt.date(2020, 1, 1))
+def test_settles_when_invitee_registers_a_phone(client, session, inviter):
+    """成立ごとに実在のSIMが1枚要る。メールとは桁が違う"""
     code = referral_service.ensure_code(session, inviter)
     invitee = make_user(session, "invitee2")
 
@@ -163,12 +158,15 @@ def test_old_account_cannot_claim(client, session, inviter):
 
 def test_stops_at_max_per_user(client, session, inviter):
     """青天井にすると自作自演の被害額に上限が無くなる"""
-    set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1), referral_max_per_user=2)
+    set_campaign(session, referral_max_per_user=2)
     code = referral_service.ensure_code(session, inviter)
 
     for i in range(3):
         invitee = make_user(session, f"lim{i}")
         client.post("/api/v1/referral/claim", headers=auth(invitee), json={"code": code})
+        client.post(
+            "/api/v1/phone", headers=auth(invitee), json={"phone": f"98765432{i}"}
+        )
 
     session.refresh(inviter)
     assert inviter.points == 400  # 2件分だけ
@@ -180,18 +178,19 @@ def test_stops_at_max_per_user(client, session, inviter):
 # ---------------------------------------------------------------- 集計
 
 def test_counts_are_reported(client, session, inviter):
-    set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1))
     code = referral_service.ensure_code(session, inviter)
     for i in range(2):
         invitee = make_user(session, f"cnt{i}")
         client.post("/api/v1/referral/claim", headers=auth(invitee), json={"code": code})
+    # 1人だけ電話番号を登録する
+    first = session.exec(select(User).where(User.email == "cnt0@example.com")).one()
+    client.post("/api/v1/phone", headers=auth(first), json={"phone": "987654321"})
 
     body = client.get("/api/v1/referral", headers=auth(inviter)).json()
     assert body["total"] == 2
-    assert body["settled"] == 2
-    assert body["earned_points"] == 400
-    assert body["reward_points"] == 200
-    assert body["settles_on_registration"] is True
+    assert body["settled"] == 1
+    assert body["pending"] == 1  # 電話番号待ち
+    assert body["earned_points"] == 200
 
 
 # ---------------------------------------------------------------- コードの手入力

@@ -20,8 +20,9 @@ DEFAULT_BONUS_REQUIRED_TASKS = 1
 # 大きくしすぎると招待そのものが目的になり、リリース後に貯める動機が薄れる
 DEFAULT_REFERRAL_REWARD_POINTS = 200
 # 1人が受け取れる招待報酬の上限件数。青天井にすると自作自演の被害額に
-# 上限が無くなる。正当な拡散を止めない程度に広めに取り、管理画面から変える
-DEFAULT_REFERRAL_MAX_PER_USER = 20
+# 上限が無くなる。成立には招待された人ごとに実在のSIMが1枚要るので
+# 大量には作れないが、上限で被害額を確定させておく
+DEFAULT_REFERRAL_MAX_PER_USER = 10
 
 
 class CampaignSetting(SQLModel, table=True):

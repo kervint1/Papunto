@@ -64,10 +64,11 @@ def test_campaign_reward_is_recorded(session, user):
 
 
 def test_referral_reward_is_recorded(client, session, user):
-    set_campaign(session, withdrawals_open_at=dt.date(2099, 1, 1))
     code = referral_service.ensure_code(session, user)
     invitee = make_user(session, "amigo")
     client.post("/api/v1/referral/claim", headers=auth(invitee), json={"code": code})
+    # 成立は招待された人が電話番号を登録したとき
+    client.post("/api/v1/phone", headers=auth(invitee), json={"phone": "987654321"})
 
     tx = session.exec(
         select(PointTransaction).where(PointTransaction.kind == "referral")

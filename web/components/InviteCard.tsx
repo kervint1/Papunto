@@ -59,10 +59,9 @@ export function InviteCard({ data }: { data: ReferralMe | null }) {
         Gana {data.reward_points} pts por cada amigo
       </div>
       <p className="mt-2 text-sm text-neutral-600">
-        {/* 成立の条件は時期で変わる。何をすれば報酬が出るかを正確に書く */}
-        {data.settles_on_registration
-          ? "Recibes los puntos apenas tu amigo crea su cuenta."
-          : "Recibes los puntos cuando tu amigo registra su número de Yape."}
+        {/* ⚠️ 条件を正確に書く。登録だけで出ると誤解されると、
+            成立しないときに「だまされた」と受け取られる */}
+        Recibes los puntos cuando tu amigo registra su número de Yape.
       </p>
       {/* 期間限定だと明示しておく。後で金額を下げるのが
           「キャンペーン終了」として自然に通るようにするため */}
@@ -110,6 +109,12 @@ export function InviteCard({ data }: { data: ReferralMe | null }) {
             <p className="text-xs text-neutral-500">Confirmados</p>
             <p className="mt-0.5 text-neutral-900">{data.settled}</p>
           </div>
+          {data.pending > 0 && (
+            <div>
+              <p className="text-xs text-neutral-500">Falta su número</p>
+              <p className="mt-0.5 text-neutral-900">{data.pending}</p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-neutral-500">Ganado</p>
             <p className="mt-0.5 text-neutral-900">
