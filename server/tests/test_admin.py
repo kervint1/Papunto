@@ -430,3 +430,55 @@ def test_user_detail_includes_referral(client, session, admin, user):
     r2 = client.get(f"/api/v1/admin/users/{invitee.id}", headers=auth(admin)).json()["referral"]
     assert r2["invited_by_email"] == user.email
     assert r2["invited_by_user_id"] == user.id
+
+
+# ------------------------------------------------- 先着枠からの除外
+
+def test_campaign_exclusion_revokes_and_frees_slot(client, session, admin):
+    """管理者や検証用のアカウントが埋めた枠を戻せること"""
+    from services import campaign_service
+    from tests.conftest import set_campaign
+
+    set_campaign(session, slot_limit=1)
+    u = User(provider_user_id="g-ex", email="ex@example.com", name="Ex")
+    session.add(u)
+    session.commit()
+    session.refresh(u)
+    campaign_service.grant_reward(session, u)
+    session.commit()
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 0
+
+    res = client.post(
+        f"/api/v1/admin/users/{u.id}/campaign-exclusion",
+        headers=auth(admin),
+        json={"excluded": True},
+    )
+    assert res.status_code == 200
+    assert res.json()["excluded"] is True
+    assert res.json()["reward_granted_at"] is None
+
+    session.refresh(u)
+    assert u.points == 0
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 1
+
+
+def test_campaign_exclusion_requires_admin(client, session, user):
+    res = client.post(
+        f"/api/v1/admin/users/{user.id}/campaign-exclusion",
+        headers=auth(user),
+        json={"excluded": True},
+    )
+    assert res.status_code in (401, 403)
+
+
+def test_campaign_exclusion_is_logged(client, session, admin, user):
+    """金が動く操作なので、誰が何をしたか残す"""
+    client.post(
+        f"/api/v1/admin/users/{user.id}/campaign-exclusion",
+        headers=auth(admin),
+        json={"excluded": True},
+    )
+    log = session.exec(
+        select(AdminLog).where(AdminLog.action == "user.campaign_exclusion")
+    ).one()
+    assert log.detail["excluded"] is True

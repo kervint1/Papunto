@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { getAdminUser, type AdminUserDetail } from "@/lib/api";
+import { getAdminUser, setCampaignExclusion, type AdminUserDetail } from "@/lib/api";
 
 // 台帳のkindを画面の言葉にする。noteがあればそちらを優先する
 const KIND_LABEL: Record<string, string> = {
@@ -34,6 +34,8 @@ export default function AdminUserDetailPage() {
   const params = useParams<{ id: string }>();
   const [data, setData] = useState<AdminUserDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     if (!token || !params?.id) return;
@@ -46,6 +48,28 @@ export default function AdminUserDetailPage() {
   if (!data) return <p className="text-sm text-neutral-400">Cargando...</p>;
 
   const u = data.user;
+
+  /**
+   * 先着枠の対象から外す／戻す。
+   *
+   * 外すときは付与済みの報酬も取り消される（サーバー側）。取り消せないと、
+   * 管理者や検証用のアカウントが埋めた枠が永久に戻らない。
+   */
+  const toggleExclusion = async (next: boolean) => {
+    if (!token || !data) return;
+    setConfirming(false);
+    setBusy(true);
+    try {
+      const campaign = await setCampaignExclusion(token, u.id, next);
+      setData({ ...data, campaign });
+      // 残高が変わるので取り直す
+      getAdminUser(token, u.id).then(setData).catch(console.error);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
@@ -80,14 +104,58 @@ export default function AdminUserDetailPage() {
 
       {/* 事前登録キャンペーンの進み具合。報酬は2段なので、
           初回だけ受け取って止まっている人が見分けられる必要がある */}
-      <h2 className="mt-8 text-sm text-neutral-500">Campaña de pre-registro</h2>
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="text-sm text-neutral-500">Campaña de pre-registro</h2>
+        {/* ⚠️ confirm() は使わない。ネイティブのダイアログはページ全体を止め、
+            見た目もこの画面と揃わない。他の破壊的操作（キャンペーン設定の
+            「交換を今すぐ開く」）と同じインライン確認にする */}
+        <button
+          onClick={() =>
+            data.campaign.excluded ? toggleExclusion(false) : setConfirming(true)
+          }
+          disabled={busy}
+          className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 disabled:opacity-40"
+        >
+          {data.campaign.excluded ? "先着枠に戻す" : "先着枠から外す"}
+        </button>
+      </div>
+      {confirming && (
+        <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+          <p className="text-amber-900">
+            先着枠から外し、<strong>付与済みのポイントを取り消します</strong>。
+            台帳には取り消しとして記録されます。
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => toggleExclusion(true)}
+              disabled={busy}
+              className="rounded-lg bg-amber-600 px-4 py-2 text-xs text-white disabled:opacity-50"
+            >
+              外して取り消す
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              className="rounded-lg border border-neutral-300 px-4 py-2 text-xs"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mt-2 grid gap-3 sm:grid-cols-4">
         <Card className="p-4">
           <div className="text-xs text-neutral-500">N.° de cupo</div>
           <div className="mt-1 tabular-nums">
-            #{data.campaign.position}
-            {!data.campaign.within_limit && (
-              <span className="ml-2 text-xs text-red-600">fuera de cupo</span>
+            {data.campaign.excluded ? (
+              <span className="text-sm text-neutral-500">対象外</span>
+            ) : (
+              <>
+                #{data.campaign.position}
+                {!data.campaign.within_limit && (
+                  <span className="ml-2 text-xs text-red-600">fuera de cupo</span>
+                )}
+              </>
             )}
           </div>
         </Card>

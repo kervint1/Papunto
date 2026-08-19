@@ -22,7 +22,8 @@ class CampaignStatus(BaseModel):
 class CampaignSlot(BaseModel):
     """ログイン後に出す個別の枠情報"""
 
-    position: int  # 登録順の番号
+    # ⚠️ 登録順の番号（position）は返さない。ユーザーに見せないうえ、
+    #    users.id の並び順が推測できてしまうため。管理画面では別途出している
     slot_limit: int
     within_limit: bool
     remaining: int

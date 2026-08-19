@@ -52,10 +52,16 @@ def position_of(session: Session, user: User) -> int:
     """登録順の番号。自分より前に作られたユーザー数 + 1。
 
     users.id は連番なので id で数える。作成日時ではなく id を使うのは、
-    同一秒に複数登録された場合でも順序が一意に決まるため
+    同一秒に複数登録された場合でも順序が一意に決まるため。
+
+    ⚠️ **除外したアカウントは数えない。** 管理者や検証用のアカウントを
+       数えると、最初の実ユーザーが「#3 de 100」と表示される。
+       1人しか登録していないのに3番目では、希少性の話が成立しない
     """
     earlier = session.exec(
-        select(func.count()).select_from(User).where(User.id < user.id)
+        select(func.count())
+        .select_from(User)
+        .where(User.id < user.id, User.campaign_excluded == False)  # noqa: E712
     ).one()
     return int(earlier) + 1
 
@@ -91,7 +97,10 @@ def granted_count(session: Session) -> int:
         session.exec(
             select(func.count())
             .select_from(User)
-            .where(User.campaign_reward_granted_at.is_not(None))
+            .where(
+                User.campaign_reward_granted_at.is_not(None),
+                User.campaign_excluded == False,  # noqa: E712
+            )
         ).one()
     )
 
@@ -109,6 +118,10 @@ def grant_reward(session: Session, user: User) -> bool:
        二重付与だけは確実に防ぐ（campaign_reward_granted_at で判定）。
     """
     if user.campaign_reward_granted_at is not None:
+        return False
+    # 管理者や検証用のアカウントが先着枠を消費しないようにする。
+    # is_admin も見るのは、除外の設定を忘れたときの保険
+    if user.campaign_excluded or user.is_admin:
         return False
     settings = get_settings(session)
     if granted_count(session) >= settings.slot_limit:
@@ -132,6 +145,44 @@ def grant_reward(session: Session, user: User) -> bool:
         settings.reward_points_initial,
     )
     return True
+
+
+def revoke_reward(session: Session, user: User) -> int:
+    """付与済みの報酬を取り消す。戻した合計ポイントを返す。
+
+    取り消せないと、管理者や検証用のアカウントが埋めた枠が永久に戻らない。
+    不正を見つけたときにも同じ経路を使う（残り枠は付与済み件数で数えているので、
+    取り消せば枠が戻る）。
+
+    ⚠️ 招待報酬は取り消さない。別の行為への報酬なので、キャンペーンの除外とは分ける。
+
+    commitはしない（呼び出し元のトランザクションに載せる）
+    """
+    settings = get_settings(session)
+    returned = 0
+
+    if user.campaign_reward_granted_at is not None:
+        returned += settings.reward_points_initial
+        user.campaign_reward_granted_at = None
+    if user.campaign_bonus_granted_at is not None:
+        returned += settings.reward_points_bonus
+        user.campaign_bonus_granted_at = None
+
+    if returned == 0:
+        return 0
+
+    user.points -= returned
+    session.add(user)
+    # 履歴から消すのではなく「取り消した」として残す
+    points_service.record(
+        session,
+        user=user,
+        points=-returned,
+        kind="campaign_revoked",
+        note="Bono de pre-registro anulado",
+    )
+    logger.info("campaign reward revoked: user=%s points=%s", user.id, returned)
+    return returned
 
 
 def completed_tasks(session: Session, user: User) -> int:
@@ -170,6 +221,8 @@ def try_grant_bonus(session: Session, user: User) -> bool:
     if user.campaign_reward_granted_at is None:
         return False
     if user.campaign_bonus_granted_at is not None:
+        return False
+    if user.campaign_excluded:
         return False
 
     settings = get_settings(session)

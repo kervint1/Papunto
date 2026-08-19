@@ -59,9 +59,13 @@ export function CampaignCard({
     <div className="rounded-3xl border border-neutral-200 bg-white p-6 sm:p-8">
       <p className="text-sm text-neutral-500">Pre-registro</p>
 
+      {/* ⚠️ 個別の番号は出さない。伝えたいのは「枠の中に入れた」ことだけで、
+          何番目かは要らない。出すと、除外や削除で番号がずれて見えるし、
+          users.id の並び順を外に出すことにもなる。
+          希少性は上の「Quedan N de 100 cupos」（全体の残り）が担う */}
       <div className="mt-1 text-neutral-900" style={{ fontSize: "1.75rem", lineHeight: 1.2 }}>
         {slot.within_limit
-          ? `Eres el #${slot.position} de ${slot.slot_limit}`
+          ? `Estás dentro de los ${slot.slot_limit}`
           : "Los cupos se agotaron"}
       </div>
 

@@ -212,7 +212,6 @@ export async function getCampaignStatus(): Promise<CampaignStatus> {
 }
 
 export interface CampaignSlot {
-  position: number;
   slot_limit: number;
   within_limit: boolean;
   remaining: number;
@@ -399,6 +398,8 @@ export interface AdminUserCampaign {
   bonus_granted_at: string | null;
   tasks_completed: number;
   bonus_required_tasks: number;
+  /** 先着枠の対象外か。管理者や検証用のアカウントを外す */
+  excluded: boolean;
 }
 
 export interface AdminUserReferral {
@@ -774,4 +775,16 @@ export async function requestMagicLink(email: string): Promise<{ sent: boolean }
     throw new ApiError(body?.error ?? { code: "UNKNOWN", message: "Error de conexión" });
   }
   return res.json();
+}
+
+export function setCampaignExclusion(
+  token: string,
+  userId: number,
+  excluded: boolean
+): Promise<AdminUserCampaign> {
+  return apiFetch<AdminUserCampaign>(
+    `/api/v1/admin/users/${userId}/campaign-exclusion`,
+    token,
+    { method: "POST", body: JSON.stringify({ excluded }) }
+  );
 }

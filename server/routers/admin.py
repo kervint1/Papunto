@@ -30,6 +30,7 @@ from schemas.admin import (
     AdminPointTransactionRead,
     AdminUserCampaign,
     AdminUserReferral,
+    CampaignExclusionUpdate,
     AdminCampaignSettingsUpdate,
     AdminComplaintList,
     AdminComplaintRead,
@@ -311,6 +312,7 @@ def get_user(user_id: int, session: Session = Depends(get_session)):
             bonus_granted_at=user.campaign_bonus_granted_at,
             tasks_completed=done,
             bonus_required_tasks=required,
+            excluded=user.campaign_excluded,
         ),
         referral=AdminUserReferral(
             code=user.referral_code,
@@ -329,6 +331,53 @@ def get_user(user_id: int, session: Session = Depends(get_session)):
         topups=[
             AdminTopUpRead.model_validate({**r.model_dump(), "user_email": user.email}) for r in topups
         ],
+    )
+
+
+@router.post("/users/{user_id}/campaign-exclusion", response_model=AdminUserCampaign)
+def set_campaign_exclusion(
+    user_id: int,
+    body: CampaignExclusionUpdate,
+    admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """先着枠の対象から外す／戻す。
+
+    外すときは**付与済みの報酬も取り消す**。取り消せないと、管理者や検証用の
+    アカウントが埋めた枠が永久に戻らない。不正を見つけたときも同じ経路を使う。
+    """
+    user = session.get(User, user_id)
+    if user is None:
+        raise ApiError(404, "USER_NOT_FOUND", "Usuario no encontrado")
+
+    user.campaign_excluded = body.excluded
+    session.add(user)
+
+    revoked = 0
+    if body.excluded:
+        revoked = campaign_service.revoke_reward(session, user)
+
+    admin_service.log_action(
+        session,
+        admin=admin,
+        action="user.campaign_exclusion",
+        target_type="user",
+        target_id=str(user_id),
+        detail={"excluded": body.excluded, "points_revoked": revoked},
+    )
+    session.commit()
+    session.refresh(user)
+
+    slot = campaign_service.slot_of(session, user)
+    done, required = campaign_service.bonus_progress(session, user)
+    return AdminUserCampaign(
+        position=slot.position,
+        within_limit=slot.within_limit,
+        reward_granted_at=user.campaign_reward_granted_at,
+        bonus_granted_at=user.campaign_bonus_granted_at,
+        tasks_completed=done,
+        bonus_required_tasks=required,
+        excluded=user.campaign_excluded,
     )
 
 

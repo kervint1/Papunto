@@ -43,7 +43,6 @@ def get_my_slot(
     settings = campaign_service.get_settings(session)
     done, required = campaign_service.bonus_progress(session, user)
     return CampaignSlot(
-        position=slot.position,
         slot_limit=slot.limit,
         within_limit=slot.within_limit,
         remaining=slot.remaining,

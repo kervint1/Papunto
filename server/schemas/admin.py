@@ -178,6 +178,12 @@ class AdminUserCampaign(BaseModel):
     bonus_granted_at: Optional[datetime] = None  # タスク後の残り
     tasks_completed: int
     bonus_required_tasks: int
+    # 先着枠の対象外か。管理者や検証用のアカウントを外すために使う
+    excluded: bool
+
+
+class CampaignExclusionUpdate(BaseModel):
+    excluded: bool
 
 
 class AdminUserReferral(BaseModel):

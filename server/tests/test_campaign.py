@@ -36,13 +36,15 @@ def make_users(session: Session, n: int) -> list[User]:
 
 # ---------------------------------------------------------------- 登録順の番号
 
-def test_position_follows_registration_order(client, session, user):
-    """先に登録した人が若い番号になる"""
-    later = make_users(session, 2)
+def test_slot_does_not_expose_the_position(client, session, user):
+    """個別の番号は返さない。
 
-    assert client.get("/api/v1/campaign/me", headers=auth(user)).json()["position"] == 1
-    assert client.get("/api/v1/campaign/me", headers=auth(later[0])).json()["position"] == 2
-    assert client.get("/api/v1/campaign/me", headers=auth(later[1])).json()["position"] == 3
+    ユーザーに見せないうえ、users.id の並び順が推測できてしまう。
+    枠の中かどうか（within_limit）だけを返す
+    """
+    body = client.get("/api/v1/campaign/me", headers=auth(user)).json()
+    assert "position" not in body
+    assert body["within_limit"] is True
 
 
 def test_within_limit(client, session, user):

@@ -263,3 +263,116 @@ def test_progress_is_reported(client, session):
     assert body["tasks_completed"] == 1
     assert body["bonus_granted"] is True
     assert body["bonus_points"] == 200
+
+
+# ---------------------------------------------------------------- 先着枠からの除外
+
+def test_excluded_user_gets_nothing(session):
+    """管理者や検証用のアカウントが先着枠を消費しないこと"""
+    u = make_user(session, "ex1")
+    u.campaign_excluded = True
+    session.add(u)
+    session.commit()
+
+    assert campaign_service.grant_reward(session, u) is False
+    assert u.points == 0
+
+
+def test_admin_gets_nothing(session):
+    """除外の設定を忘れたときの保険"""
+    u = make_user(session, "ex2")
+    u.is_admin = True
+    session.add(u)
+    session.commit()
+
+    assert campaign_service.grant_reward(session, u) is False
+
+
+def test_excluded_user_does_not_consume_a_slot(client, session):
+    """除外したアカウントは残り枠を減らさない"""
+    set_campaign(session, slot_limit=2)
+    a = make_user(session, "ex3")
+    campaign_service.grant_reward(session, a)
+    session.commit()
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 1
+
+    a.campaign_excluded = True
+    session.add(a)
+    session.commit()
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 2
+
+
+def test_position_skips_excluded_users(session):
+    """番号が除外を飛ばすこと。
+
+    ユーザーには番号を見せないが、**管理画面では出す**。そこで
+    検証用アカウントを数えると、最初の実ユーザーが3番目に見える
+    """
+    admin = make_user(session, "ex4")
+    admin.campaign_excluded = True
+    session.add(admin)
+    session.commit()
+
+    real = make_user(session, "ex5")
+    assert campaign_service.position_of(session, real) == 1
+
+
+# ---------------------------------------------------------------- 取り消し
+
+def test_revoke_returns_points_and_frees_the_slot(client, session):
+    """取り消せないと、埋めた枠が永久に戻らない"""
+    set_campaign(session, slot_limit=1)
+    u = make_user(session, "rev1")
+    campaign_service.grant_reward(session, u)
+    session.commit()
+    assert u.points == 300
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 0
+
+    returned = campaign_service.revoke_reward(session, u)
+    u.campaign_excluded = True
+    session.add(u)
+    session.commit()
+
+    assert returned == 300
+    assert u.points == 0
+    assert u.campaign_reward_granted_at is None
+    assert client.get("/api/v1/campaign/status").json()["remaining"] == 1
+
+
+def test_revoke_takes_back_the_bonus_too(session):
+    u = make_user(session, "rev2")
+    campaign_service.grant_reward(session, u)
+    session.commit()
+    _approve_task(session, u, "rev2-t1")
+    session.refresh(u)
+    assert u.points == 600  # 300 + 100(タスク) + 200(ボーナス)
+
+    campaign_service.revoke_reward(session, u)
+    session.commit()
+
+    # キャンペーン分だけ戻り、タスクの報酬は残る
+    assert u.points == 100
+    assert u.campaign_bonus_granted_at is None
+
+
+def test_revoke_is_recorded_in_the_ledger(session):
+    """履歴から消すのではなく「取り消した」として残す"""
+    from models import PointTransaction
+    from sqlmodel import select as _select
+
+    u = make_user(session, "rev3")
+    campaign_service.grant_reward(session, u)
+    session.commit()
+    campaign_service.revoke_reward(session, u)
+    session.commit()
+
+    kinds = [t.kind for t in session.exec(
+        _select(PointTransaction).where(PointTransaction.user_id == u.id)
+    ).all()]
+    assert kinds == ["campaign", "campaign_revoked"]
+
+
+def test_revoke_is_a_noop_when_nothing_granted(session):
+    u = make_user(session, "rev4")
+    assert campaign_service.revoke_reward(session, u) == 0
+    assert u.points == 0

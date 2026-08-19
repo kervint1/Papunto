@@ -39,6 +39,12 @@ class User(SQLModel, table=True):
     # 残りの200ptを付与した時刻。タスクを規定数こなすと入る。
     # 分けて持つのは「登録しただけの人」と「実際に動いた人」を区別するため
     campaign_bonus_granted_at: Optional[datetime] = Field(default=None, index=True)
+    # 事前登録キャンペーンの対象外にする。管理者や検証用のアカウントが
+    # 先着100名の枠を消費しないようにするためのフラグ。
+    #
+    # ⚠️ is_admin では代用できない。管理者フラグは**登録の後に**付けるので、
+    #    その時点では既に付与が済んでいる。除外は明示的に持つ
+    campaign_excluded: bool = Field(default=False, index=True)
     # 管理画面の利用可否。昇格は画面から行わずDBクライアントで直接UPDATEする
     # （管理画面が乗っ取られても管理者を増やされないようにするため）
     is_admin: bool = Field(default=False, index=True)
