@@ -221,6 +221,7 @@ class AdminCampaignSettings(BaseModel):
     withdrawals_open_at: Optional[date] = None  # NULL は即座に開放
     referral_reward_points: int
     referral_max_per_user: int
+    referral_required_earnings: int
     updated_at: Optional[datetime] = None
     updated_by_email: Optional[str] = None
 
@@ -240,6 +241,9 @@ class AdminCampaignSettingsUpdate(BaseModel):
     withdrawals_open_at: Optional[date] = None
     referral_reward_points: int = Field(ge=0, le=100000)
     referral_max_per_user: int = Field(ge=1, le=10000)
+    # 0にすると登録しただけで成立し、メールを量産するだけで報酬が積み上がる。
+    # 下限を1にして、必ずタスクの実績を要求する
+    referral_required_earnings: int = Field(ge=1, le=1000000)
     # 開放日を空にする（＝即座に開放する）ときだけ必須。
     # 事前登録中に誤って開放するのを一段止める
     confirm_open_now: bool = False

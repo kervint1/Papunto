@@ -158,6 +158,7 @@ def _campaign_settings_read(session: Session, setting: CampaignSetting) -> Admin
         withdrawals_open_at=setting.withdrawals_open_at,
         referral_reward_points=setting.referral_reward_points,
         referral_max_per_user=setting.referral_max_per_user,
+        referral_required_earnings=setting.referral_required_earnings,
         updated_at=setting.updated_at,
         updated_by_email=email,
         granted_count=campaign_service.granted_count(session),
@@ -214,6 +215,7 @@ def update_campaign_settings(
         ),
         "referral_reward_points": setting.referral_reward_points,
         "referral_max_per_user": setting.referral_max_per_user,
+        "referral_required_earnings": setting.referral_required_earnings,
     }
     setting.slot_limit = body.slot_limit
     setting.reward_points_initial = body.reward_points_initial
@@ -222,6 +224,7 @@ def update_campaign_settings(
     setting.withdrawals_open_at = body.withdrawals_open_at
     setting.referral_reward_points = body.referral_reward_points
     setting.referral_max_per_user = body.referral_max_per_user
+    setting.referral_required_earnings = body.referral_required_earnings
     setting.updated_at = datetime.now(timezone.utc)
     setting.updated_by_user_id = admin.id
     session.add(setting)
@@ -244,6 +247,7 @@ def update_campaign_settings(
                 ),
                 "referral_reward_points": body.referral_reward_points,
                 "referral_max_per_user": body.referral_max_per_user,
+                "referral_required_earnings": body.referral_required_earnings,
             },
         },
     )

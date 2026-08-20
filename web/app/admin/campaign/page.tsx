@@ -27,6 +27,7 @@ export default function AdminCampaign() {
   const [openAt, setOpenAt] = useState("");
   const [referralPoints, setReferralPoints] = useState("");
   const [referralMax, setReferralMax] = useState("");
+  const [referralEarnings, setReferralEarnings] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -40,6 +41,7 @@ export default function AdminCampaign() {
     setOpenAt(s.withdrawals_open_at ?? "");
     setReferralPoints(String(s.referral_reward_points));
     setReferralMax(String(s.referral_max_per_user));
+    setReferralEarnings(String(s.referral_required_earnings));
   }, []);
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function AdminCampaign() {
         withdrawals_open_at: openAt || null,
         referral_reward_points: Number(referralPoints),
         referral_max_per_user: Number(referralMax),
+        referral_required_earnings: Number(referralEarnings),
         confirm_open_now: confirmOpenNow,
       });
       apply(next);
@@ -95,7 +98,8 @@ export default function AdminCampaign() {
     Number(bonusTasks) !== data.bonus_required_tasks ||
     (openAt || null) !== data.withdrawals_open_at ||
     Number(referralPoints) !== data.referral_reward_points ||
-    Number(referralMax) !== data.referral_max_per_user;
+    Number(referralMax) !== data.referral_max_per_user ||
+    Number(referralEarnings) !== data.referral_required_earnings;
 
   return (
     <>
@@ -140,7 +144,9 @@ export default function AdminCampaign() {
           </label>
 
           <label className="block">
-            <span className="text-sm text-neutral-700">Premio al registrarse (pts)</span>
+            <span className="text-sm text-neutral-700">
+              Premio al registrar el número (pts)
+            </span>
             <input
               type="number"
               min={0}
@@ -151,8 +157,9 @@ export default function AdminCampaign() {
             <span className="mt-1 block text-xs text-neutral-500">
               {/* 300ptは最低交換額に届かない。これが意図した設計なので、
                   上げすぎると「登録して即引き出して離脱」に戻る */}
+              Se entrega al registrar el número de Yape, no al crear la cuenta.
               Debe quedar por debajo del mínimo para canjear, si no podrán
-              retirar sin hacer ninguna tarea. Solo afecta a registros futuros.
+              retirar sin hacer ninguna tarea.
             </span>
           </label>
 
@@ -213,6 +220,25 @@ export default function AdminCampaign() {
               />
               <span className="mt-1 block text-xs text-neutral-500">
                 Se paga a quien invita. Solo afecta a las invitaciones futuras.
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="text-sm text-neutral-700">
+                Puntos que debe ganar el invitado (en tareas)
+              </span>
+              <input
+                type="number"
+                min={1}
+                value={referralEarnings}
+                onChange={(e) => setReferralEarnings(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+              <span className="mt-1 block text-xs text-neutral-500">
+                {/* ⚠️ 0にできない（サーバー側で下限1）。0だと登録しただけで成立し、
+                    メールを量産するだけで報酬が積み上がる */}
+                Solo cuentan las tareas. No se cuentan los puntos de la campaña
+                ni los de invitaciones. Bajarlo mucho facilita el autofraude.
               </span>
             </label>
 

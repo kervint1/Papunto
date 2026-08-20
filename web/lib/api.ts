@@ -669,6 +669,7 @@ export interface AdminCampaignSettings {
   bonus_required_tasks: number;
   referral_reward_points: number;
   referral_max_per_user: number;
+  referral_required_earnings: number;
   updated_at: string | null;
   updated_by_email: string | null;
   /** 付与済みの人数。枠を下げられる下限になる */
@@ -690,6 +691,7 @@ export function updateCampaignSettings(
     bonus_required_tasks: number;
     referral_reward_points: number;
     referral_max_per_user: number;
+    referral_required_earnings: number;
     confirm_open_now?: boolean;
   }
 ): Promise<AdminCampaignSettings> {
