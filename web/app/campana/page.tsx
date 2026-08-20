@@ -19,7 +19,8 @@ const FALLBACK = {
   tasks: 1,
   opensAt: "2026-10-01",
   referral: 200,
-  referralMax: 20,
+  referralMax: 10,
+  referralEarnings: 500,
 };
 
 async function loadTerms() {
@@ -37,6 +38,8 @@ async function loadTerms() {
       opensAt: d.withdrawals_open_at ?? FALLBACK.opensAt,
       referral: d.referral_reward_points ?? FALLBACK.referral,
       referralMax: d.referral_max_per_user ?? FALLBACK.referralMax,
+      referralEarnings:
+        d.referral_required_earnings ?? FALLBACK.referralEarnings,
     };
   } catch {
     return FALLBACK;
@@ -114,8 +117,11 @@ export default async function CampanaPage() {
         recibe el número 1, la siguiente el 2, y así sucesivamente.
       </p>
       <p className="mt-3">
-        Puedes ver tu número y los cupos restantes en tu cuenta y en la
-        página principal.
+        Crear la cuenta reserva tu cupo. La entrega de los puntos ocurre
+        después, según se indica más abajo.
+      </p>
+      <p className="mt-3">
+        Puedes ver los cupos restantes en tu cuenta y en la página principal.
       </p>
 
       <Heading>Recompensa</Heading>
@@ -124,10 +130,14 @@ export default async function CampanaPage() {
       </p>
       <ul className="mt-3 list-disc space-y-2 pl-5">
         <li>
+          {/* ⚠️ 「登録した時点」ではない。付与は電話番号の登録時。
+              実装と告知が食い違うとINDECOPI上そのまま問題になる */}
           <strong className="font-semibold text-neutral-900">
             {t.initial} puntos (S/ {soles(t.initial)})
           </strong>{" "}
-          acreditados al momento del registro.
+          al registrar el número de celular con el que recibirás el pago.
+          Puedes hacerlo en cualquier momento; crear la cuenta solo reserva
+          tu cupo.
         </li>
         <li>
           <strong className="font-semibold text-neutral-900">
@@ -174,8 +184,14 @@ export default async function CampanaPage() {
           {t.referralMax}.
         </li>
         <li>
-          El premio se entrega cuando la persona invitada registra su número de
-          celular para el canje. Registrarse no es suficiente.
+          {/* 条件を検証可能な事実で書く。「当社の判断により」のような
+              曖昧な条項は不当条項とみなされ得る */}
+          El premio se entrega cuando la persona invitada haya ganado{" "}
+          <strong className="font-semibold text-neutral-900">
+            {t.referralEarnings} puntos
+          </strong>{" "}
+          completando tareas. No se cuentan los puntos de esta campaña ni los
+          de invitaciones. Crear la cuenta no es suficiente.
         </li>
       </ul>
       {/* 期間限定であることを明示する。後で金額を下げるときに
@@ -207,11 +223,15 @@ export default async function CampanaPage() {
       </p>
       <ul className="mt-3 list-disc space-y-2 pl-5">
         <li>
+          {/* ⚠️ 「同じ番号での重複登録」は書かない。UNIQUE制約で2つ目の登録
+              自体が拒否されるので、発生しえない条項になる。
+              実際に起きるのは「同じ人が別々の番号で複数アカウント」の方 */}
           <strong className="font-semibold text-neutral-900">
-            Número de celular duplicado.
+            Varias cuentas de la misma persona.
           </strong>{" "}
-          Si dos o más cuentas registran el mismo número, solo se mantiene
-          la cuenta que se registró primero; las demás quedan excluidas.
+          Si al momento del pago se verifica que dos o más cuentas cobran a
+          nombre del mismo titular, solo se mantiene la cuenta que se
+          registró primero; las demás quedan excluidas.
         </li>
         <li>
           <strong className="font-semibold text-neutral-900">
