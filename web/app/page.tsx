@@ -11,10 +11,27 @@ import { Logo } from "@/components/Logo";
 import { InviteIntro } from "@/components/InviteIntro";
 import { captureRefFromUrl } from "@/lib/referral";
 
+/**
+ * ⚠️ 将来の話ではなく、**登録した人に実際に起きること**を順番に書く。
+ *    以前は「タスクを選ぶ→条件を満たす→Yapeで受け取る」だったが、
+ *    タスクは10/1まで存在しないので、来た人には何も伝わらなかった。
+ */
 const STEPS = [
-  { icon: ListChecks, title: "Elige una tarea", desc: "Solo elige la que más te guste" },
-  { icon: Target, title: "Cumple la condición", desc: "Completa un paso sencillo" },
-  { icon: Banknote, title: "Recibe con Yape", desc: "Cobra tus puntos al instante" },
+  {
+    icon: ListChecks,
+    title: "Crea tu cuenta",
+    desc: "Reservamos tu cupo entre los primeros 100",
+  },
+  {
+    icon: Target,
+    title: "Registra tu número de Yape",
+    desc: "Te acreditamos 300 pts al instante",
+  },
+  {
+    icon: Banknote,
+    title: "El 1 de octubre",
+    desc: "Abrimos las tareas. Con 1 tarea llegas a 500 pts y cobras",
+  },
 ];
 
 export default function LandingPage() {
@@ -54,23 +71,27 @@ export default function LandingPage() {
             <p className="mt-2 inline-block rounded-full bg-white/40 px-3 py-1 text-sm text-neutral-800">
               🇵🇪 Solo en Perú
             </p>
+            {/* 希少性を先に、金額を後に。金額だけを一番上に置くと、
+                「登録するだけでお金」という詐欺の常套句と同じ形になる */}
             <h1
               className="mt-4 text-neutral-900"
               style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.25 }}
             >
-              Completa tareas y
+              Sé uno de los primeros 100
               <br />
-              recibe <span className="text-white">puntos por Yape</span>
+              en <span className="text-white">Perú</span>
             </h1>
             <p className="mt-3 max-w-xl text-neutral-800">
-              Gana puntos completando tareas sencillas como encuestas o
-              registros, y cámbialos por dinero en tu billetera Yape.
+              Reservamos <strong>S/ 5.00</strong> para los primeros 100 que
+              creen su cuenta. Los cobras por Yape cuando abramos.
             </p>
+            {/* ⚠️ ペルーで「登録するだけでお金」は詐欺の典型。仕組みを
+                説明しないと、まともな人ほど登録しない */}
             <p className="mt-3 max-w-xl rounded-2xl bg-white/50 px-4 py-3 text-sm text-neutral-800">
-              <strong>Todavía estamos preparando el lanzamiento.</strong> Las
-              tareas para ganar puntos aún no están disponibles. Mientras
-              tanto, puedes leer nuestras guías para ahorrar y ganar dinero en
-              Perú.
+              <strong>¿Por qué te damos puntos?</strong> Ganamos dinero cuando
+              los anunciantes pagan por nuevos usuarios. Te adelantamos parte
+              de eso para que pruebes la plataforma. No te pedimos dinero, ni
+              tarjeta, ni datos de tu banco. Nunca.
             </p>
 
             {/* 登録の前に招待コードを確かめられるようにする。
@@ -78,32 +99,35 @@ export default function LandingPage() {
             <InviteIntro />
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {/* ブログは公開済みで読める。準備中の間はそちらへ送る */}
+              {/* 登録が主。以前はブログが主になっていたが、いま集めたいのは登録 */}
               <Button
-                asChild
                 size="lg"
                 className="h-12 bg-neutral-900 px-8 text-white hover:bg-neutral-800"
               >
-                <a href="/blog" onClick={(e) => e.stopPropagation()}>
-                  Leer las guías
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </a>
+                Crear mi cuenta
+                <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
               <Button
+                asChild
                 size="lg"
                 variant="outline"
                 className="h-12 border-neutral-900 bg-transparent px-8 text-neutral-900 hover:bg-white/40"
               >
-                Crear mi cuenta
+                <a href="/blog" onClick={(e) => e.stopPropagation()}>
+                  Leer las guías
+                </a>
               </Button>
             </div>
+            <p className="mt-3 text-sm text-neutral-800">
+              Sin pagar nada. Sin tarjeta. Solo tu correo o tu cuenta de Google.
+            </p>
           </div>
         </div>
       </div>
 
       {/* 3 steps */}
       <div className="mx-auto w-full max-w-5xl px-6 py-12 sm:px-8">
-        <h2 className="text-center">Así de fácil: 3 pasos</h2>
+        <h2 className="text-center">Cómo funciona</h2>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {STEPS.map((s, i) => (
             <div
@@ -123,21 +147,16 @@ export default function LandingPage() {
         </div>
 
         <div className="mt-10 rounded-2xl bg-neutral-900 p-8 text-center text-white">
-          <p className="text-sm text-neutral-300">Así funcionará Papunto</p>
+          <p className="text-sm text-neutral-300">Invita y gana más</p>
           <p style={{ fontSize: "1.5rem" }} className="mt-1">
-            cuando lancemos
+            200 pts por cada amigo
           </p>
           <p className="mx-auto mt-3 max-w-md text-sm text-neutral-300">
-            Aún no puedes ganar puntos. Estamos preparando el catálogo de tareas
-            para Perú.
+            Comparte tu código durante el pre-registro. Recibes los puntos
+            cuando tu amigo empiece a completar tareas.
           </p>
-          <Button
-            asChild
-            className="mx-auto mt-4 h-11 w-full max-w-sm bg-yellow-400 text-neutral-900 hover:bg-yellow-300"
-          >
-            <a href="/blog" onClick={(e) => e.stopPropagation()}>
-              Leer las guías mientras tanto
-            </a>
+          <Button className="mx-auto mt-4 h-11 w-full max-w-sm bg-yellow-400 text-neutral-900 hover:bg-yellow-300">
+            Crear mi cuenta y obtener mi código
           </Button>
         </div>
       </div>
