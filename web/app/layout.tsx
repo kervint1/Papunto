@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   // canonical・OGP・sitemapの絶対URLの基点。未設定だと相対URLのまま出てしまう
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Papunto — Gana puntos y cámbialos por dinero en Yape",
+    default: "Papunto — Gana puntos por tareas y cámbialos por dinero",
     // 下位ページは自分のタイトルだけ書けばよい
     template: `%s | ${SITE_NAME}`,
   },
@@ -25,12 +25,12 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: LOCALE,
     url: "/",
-    title: "Papunto — Gana puntos y cámbialos por dinero en Yape",
+    title: "Papunto — Gana puntos por tareas y cámbialos por dinero",
     description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Papunto — Gana puntos y cámbialos por dinero en Yape",
+    title: "Papunto — Gana puntos por tareas y cámbialos por dinero",
     description: SITE_DESCRIPTION,
   },
   robots: {
