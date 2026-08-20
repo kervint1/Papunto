@@ -63,6 +63,7 @@ def get_my_referral(
         max_per_user=settings.referral_max_per_user,
         pending=referral_service.total_count(session, user)
         - referral_service.settled_count(session, user),
+        required_earnings=settings.referral_required_earnings,
         invited_by=inviter.name if inviter else None,
         can_claim=inviter is None and referral_service.within_claim_window(user),
     )

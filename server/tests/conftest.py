@@ -106,3 +106,40 @@ def user_fixture(session: Session):
     session.commit()
     session.refresh(user)
     return user
+
+
+def complete_registration(session: Session, user: User, phone: str = "987654321"):
+    """登録 → 電話番号登録まで進め、キャンペーン報酬を受け取った状態にする。
+
+    ⚠️ **登録しただけでは1ptも付与されない**。付与は電話番号を登録したとき。
+       登録時に渡すと、メールアドレスを大量に作るだけで盗めるものが生まれる
+       （マジックリンクがあるので電話番号もGoogleアカウントも要らない）。
+    """
+    from services import campaign_service, referral_service
+
+    if user.campaign_reserved_at is None:
+        campaign_service.reserve_slot(session, user)
+    user.phone = phone
+    session.add(user)
+    session.flush()
+    campaign_service.grant_reward(session, user)
+    referral_service.settle_for_invitee(session, user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def earn_from_task(session: Session, user: User, points: int, tid: str):
+    """タスクの成果を承認済みで作る。招待の成立条件はこの合計"""
+    from services import postback_service
+
+    postback_service.process_conversion(
+        session,
+        provider="cpalead",
+        userid=str(user.id),
+        transaction_id=tid,
+        reward_points=points,
+        status="approved",
+    )
+    session.refresh(user)
+    return user

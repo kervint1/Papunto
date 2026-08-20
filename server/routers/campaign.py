@@ -29,6 +29,7 @@ def get_status(session: Session = Depends(get_session)):
         bonus_required_tasks=settings.bonus_required_tasks,
         referral_reward_points=settings.referral_reward_points,
         referral_max_per_user=settings.referral_max_per_user,
+        referral_required_earnings=settings.referral_required_earnings,
         withdrawals_open_at=opens.isoformat() if opens else None,
         withdrawals_open=campaign_service.withdrawals_open(session),
     )
@@ -47,6 +48,7 @@ def get_my_slot(
         within_limit=slot.within_limit,
         remaining=slot.remaining,
         phone_registered=bool(user.phone),
+        reserved=user.campaign_reserved_at is not None,
         reward_granted=user.campaign_reward_granted_at is not None,
         reward_points=(
             settings.reward_points_initial

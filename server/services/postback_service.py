@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 import config
 from errors import ApiError
 from models import Postback, PostbackLog, User
-from services import campaign_service, points_service
+from services import campaign_service, points_service, referral_service
 from models.postback import (
     STATUS_APPROVED,
     STATUS_PENDING,
@@ -155,6 +155,9 @@ def process_conversion(
         # 成果が承認されたこの瞬間が、キャンペーンのボーナス条件を
         # 満たしうる唯一のタイミング。ここで試さないと誰も付与しない
         campaign_service.try_grant_bonus(session, user)
+        # 招待の成立条件は「招待された人のタスク実績」。成果が承認された
+        # この瞬間が条件を満たしうる唯一のタイミング
+        referral_service.settle_for_invitee(session, user)
     elif status == STATUS_REJECTED:
         postback.status = STATUS_REJECTED
         postback.rejected_at = now

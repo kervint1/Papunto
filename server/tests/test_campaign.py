@@ -72,20 +72,18 @@ def test_status_is_public(client, session):
 
 
 def test_remaining_decreases(client, session, user):
-    """残り枠は**付与済み件数**で減る。登録者数ではない。
+    """残り枠は**確保済み件数**で減る。
 
-    付与を取り消したときに枠が戻るようにするため。登録者数で数えると、
-    不正を見つけて取り消しても表示が戻らず、枠を回収できない
+    付与済みで数えると、登録はしたが電話番号をまだ入れていない人が
+    枠を消費していないことになり、実態とずれる
     """
     set_campaign(session, slot_limit=5)
-    assert client.get("/api/v1/campaign/status").json()["remaining"] == 5
-
-    campaign_service.grant_reward(session, user)
+    campaign_service.reserve_slot(session, user)
     session.commit()
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 4
 
     for u in make_users(session, 3):
-        campaign_service.grant_reward(session, u)
+        campaign_service.reserve_slot(session, u)
     session.commit()
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 1
 
@@ -93,7 +91,7 @@ def test_remaining_decreases(client, session, user):
 def test_remaining_never_negative(client, session):
     set_campaign(session, slot_limit=2)
     for u in make_users(session, 5):
-        campaign_service.grant_reward(session, u)
+        campaign_service.reserve_slot(session, u)
     session.commit()
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 0
 

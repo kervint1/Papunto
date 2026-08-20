@@ -63,7 +63,9 @@ def test_creates_user(client, session, monkeypatch):
     user = session.exec(select(User).where(User.provider == "facebook")).one()
     assert user.provider_user_id == "fb-1"
     assert user.email == "ana@example.com"  # 小文字に正規化される
-    assert user.points == 300
+    # 登録では付与しない。枠を確保するだけ
+    assert user.points == 0
+    assert user.campaign_reserved_at is not None
 
 
 # ---------------------------------------------------------------- なりすまし阻止
@@ -146,4 +148,4 @@ def test_links_to_existing_google_account(client, session, monkeypatch):
 
     assert len(session.exec(select(User)).all()) == 1
     session.refresh(google_user)
-    assert google_user.points == 300  # 二重に付与しない
+    assert google_user.points == 0

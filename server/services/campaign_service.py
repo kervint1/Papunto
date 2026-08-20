@@ -4,10 +4,20 @@
 番号が確定するので、電話番号やタスクを求めずに「あなたは37人目です」と
 即座に返せる。摩擦を最小にして登録数を最大化するための設計。
 
-報酬は**2段に分けて**渡す。登録時に300pt、タスクを規定数こなしたら残り200pt。
-一度に500pt渡すと、交換の開放日に引き出して終わりになる。300ptは最低交換額
-（500pt）に届かないので、タスクを1件こなさないと1ソルも引き出せない。
-これが10/1に戻ってくる動機になり、ASPに見せる成果の実績にもなる。
+## 付与は3段階
+
+    登録          → 枠を確保するだけ。**ポイントは0**
+    電話番号登録  → 300pt
+    タスク1件     → +200pt（合計500pt＝最低交換額）
+
+**登録しただけでは1ptも存在しない。** 登録時に付与していた頃は、
+メールアドレスを大量に作るだけで盗めるものが生まれていた
+（マジックリンクのログインがあるので電話番号もGoogleアカウントも要らない）。
+電話番号を条件にすると、1件ごとに実在のSIMが1枚要る。
+
+300ptは最低交換額（500pt）に届かない。タスクを1件こなさないと1ソルも
+引き出せないので、交換の開放日に引き出して終わりにならない。
+ASPに見せる成果の実績にもなる。
 
 不正の判定は送金の前に行う。電話番号の登録は10/1以降なので、
 同一番号の重複はそこで発覚し、**1円も払う前に除外できる**。
@@ -80,19 +90,33 @@ def slot_of(session: Session, user: User) -> Slot:
 def remaining_slots(session: Session) -> int:
     """LPに出す残り枠。未ログインでも見せられるよう、ユーザー個別の情報を持たない。
 
-    ⚠️ 登録者数ではなく**付与済み件数**で数える。付与の判定（grant_reward）と
-       同じ基準にしないと、不正を見つけて付与を取り消しても表示上の枠が
-       戻らず、枠の回収という運用が効かなくなる
+    ⚠️ **確保済み件数**で数える。付与済みで数えると、登録はしたが電話番号を
+       まだ入れていない人が枠を消費していないことになり、実態とずれる。
+       不正を見つけたら確保ごと取り消せば枠が戻る
     """
-    return max(0, get_settings(session).slot_limit - granted_count(session))
+    return max(0, get_settings(session).slot_limit - reserved_count(session))
+
+
+def reserved_count(session: Session) -> int:
+    """枠を確保した人数。**枠の判定はこの数で行う**。
+
+    付与済み数では数えない。付与は電話番号の登録時なので、そちらで数えると
+    「登録は100人いるのに残り枠は100のまま」になり、希少性の表示が壊れる
+    """
+    return int(
+        session.exec(
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.campaign_reserved_at.is_not(None),
+                User.campaign_excluded == False,  # noqa: E712
+            )
+        ).one()
+    )
 
 
 def granted_count(session: Session) -> int:
-    """報酬を付与済みの人数。枠の判定はこの数で行う。
-
-    登録者数ではなく付与済み数で数えるのは、キャンペーン開始前に登録した
-    ユーザーが枠を消費しないようにするため
-    """
+    """報酬を付与済みの人数。運用の把握用（枠の判定には使わない）"""
     return int(
         session.exec(
             select(func.count())
@@ -103,6 +127,28 @@ def granted_count(session: Session) -> int:
             )
         ).one()
     )
+
+
+def reserve_slot(session: Session, user: User) -> bool:
+    """先着枠を確保する。確保できたら True。**ポイントは渡さない**。
+
+    登録した時点で呼ぶ。付与は電話番号の登録まで待つ（grant_reward）。
+
+    ⚠️ 同時登録が重なると枠を数人超えることがある。行ロックで完全に防ぐ
+       こともできるが、超過しても数人の話で、ロックによる登録の詰まりの方が
+       損失が大きい。二重確保だけは確実に防ぐ。
+    """
+    if user.campaign_reserved_at is not None:
+        return False
+    if user.campaign_excluded or user.is_admin:
+        return False
+    if reserved_count(session) >= get_settings(session).slot_limit:
+        return False
+
+    user.campaign_reserved_at = dt.datetime.now(dt.timezone.utc)
+    session.add(user)
+    logger.info("campaign slot reserved: user=%s", user.id)
+    return True
 
 
 def grant_reward(session: Session, user: User) -> bool:
@@ -119,13 +165,12 @@ def grant_reward(session: Session, user: User) -> bool:
     """
     if user.campaign_reward_granted_at is not None:
         return False
-    # 管理者や検証用のアカウントが先着枠を消費しないようにする。
-    # is_admin も見るのは、除外の設定を忘れたときの保険
-    if user.campaign_excluded or user.is_admin:
+    # 枠を確保していない人には付与しない（枠外の登録、除外したアカウント）
+    if user.campaign_reserved_at is None:
+        return False
+    if user.campaign_excluded:
         return False
     settings = get_settings(session)
-    if granted_count(session) >= settings.slot_limit:
-        return False
 
     user.points += settings.reward_points_initial
     user.campaign_reward_granted_at = dt.datetime.now(dt.timezone.utc)
@@ -161,6 +206,8 @@ def revoke_reward(session: Session, user: User) -> int:
     settings = get_settings(session)
     returned = 0
 
+    # 確保も外す。外さないと枠が戻らない
+    user.campaign_reserved_at = None
     if user.campaign_reward_granted_at is not None:
         returned += settings.reward_points_initial
         user.campaign_reward_granted_at = None
@@ -169,6 +216,7 @@ def revoke_reward(session: Session, user: User) -> int:
         user.campaign_bonus_granted_at = None
 
     if returned == 0:
+        session.add(user)
         return 0
 
     user.points -= returned

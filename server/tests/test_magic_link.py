@@ -73,7 +73,9 @@ def test_verify_creates_user_and_returns_token(client, session):
 
     user = session.exec(select(User).where(User.email == "nuevo@example.com")).one()
     assert user.provider == "email"
-    assert user.points == 300  # キャンペーン報酬が付く
+    # 登録では付与しない。枠を確保するだけ
+    assert user.points == 0
+    assert user.campaign_reserved_at is not None
 
 
 def test_token_is_single_use(client, session):
@@ -123,7 +125,7 @@ def test_links_to_existing_google_account(client, session):
 
     assert len(session.exec(select(User)).all()) == 1
     session.refresh(google_user)
-    assert google_user.points == 300  # 二重に付与しない
+    assert google_user.points == 0
 
 
 # ---------------------------------------------------------------- 送信できないとき

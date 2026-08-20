@@ -28,14 +28,16 @@ def test_creates_user_on_first_login(session):
     u = login(session, "google", "g-1", "nuevo@example.com", name="Nuevo")
     assert u.provider == "google"
     assert u.provider_user_id == "g-1"
-    assert u.points == 300  # キャンペーン報酬が付く
+    # ⚠️ 登録では付与しない。枠を確保するだけ（付与は電話番号の登録時）
+    assert u.points == 0
+    assert u.campaign_reserved_at is not None
 
 
 def test_same_provider_id_returns_same_user(session):
     a = login(session, "google", "g-1", "x@example.com")
     b = login(session, "google", "g-1", "x@example.com")
     assert a.id == b.id
-    assert b.points == 300  # 2回目で報酬は増えない
+    assert b.points == 0
 
 
 def test_same_email_different_provider_links_to_existing(session):
@@ -48,7 +50,8 @@ def test_same_email_different_provider_links_to_existing(session):
 
     assert facebook.id == google.id
     assert len(session.exec(select(User)).all()) == 1
-    assert facebook.points == 300  # 二重に付与しない
+    # 枠も二重に確保しない
+    assert facebook.points == 0
 
 
 def test_different_email_creates_separate_user(session):

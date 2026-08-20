@@ -75,10 +75,11 @@ def resolve_user(
         avatar_url=avatar_url,
     )
     session.add(user)
-    # idを確定させてから報酬を付ける（ログに残すidが要るため）
+    # idを確定させてから枠を確保する（ログに残すidが要るため）
     session.flush()
-    # 事前登録キャンペーン。枠が残っていれば登録した時点で付与する。
-    # 交換は開放日（/admin/campaign）まで開かないが、残高が増えるのが
-    # 見えないと進んでいる実感がないので、付与自体は即時にする
-    campaign_service.grant_reward(session, user)
+    # ⚠️ ここでは**枠を確保するだけ**。ポイントは渡さない。
+    #    登録だけで付与すると、メールアドレスを大量に作るだけで盗めるものが
+    #    生まれる（マジックリンクがあるので電話番号もGoogleアカウントも不要）。
+    #    付与は電話番号を登録したとき（routers/phone.py）
+    campaign_service.reserve_slot(session, user)
     return user

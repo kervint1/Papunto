@@ -18,7 +18,7 @@ from dependencies import get_current_user
 from errors import ApiError
 from models import User
 from schemas.phone import PhoneRegister, PhoneStatus
-from services import referral_service
+from services import campaign_service, referral_service
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +73,15 @@ def register_phone(
     session.refresh(locked)
     logger.info("phone registered: user=%s", locked.id)
 
-    # 交換が開いた後は、電話番号の登録が招待の成立条件になる。
-    # ここで試さないと、条件を満たしても誰も成立させる人がいない
-    if referral_service.settle_for_invitee(session, locked):
+    # 事前登録キャンペーンの報酬は**ここで**付与する。登録時に渡すと、
+    # メールアドレスを大量に作るだけで盗めるものが生まれるため
+    granted = campaign_service.grant_reward(session, locked)
+
+    # 招待の成立も試す（条件は招待された人のタスク実績）
+    settled = referral_service.settle_for_invitee(session, locked)
+
+    if granted or settled:
         session.commit()
+        session.refresh(locked)
 
     return PhoneStatus(registered=True, phone=locked.phone)

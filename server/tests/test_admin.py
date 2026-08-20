@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from models import AdminLog, Complaint, User, Withdrawal
 from services.auth_service import AuthService
+from tests.conftest import complete_registration, earn_from_task
 
 
 @pytest.fixture(name="admin")
@@ -336,8 +337,7 @@ def test_campaign_settings_cannot_go_below_granted(client, session, admin):
         session.add(u)
         session.commit()
         session.refresh(u)
-        campaign_service.grant_reward(session, u)
-        session.commit()
+        complete_registration(session, u, phone=f"98765432{i}")
 
     res = client.put(
         "/api/v1/admin/campaign-settings",
@@ -354,8 +354,7 @@ def test_user_detail_includes_ledger(client, session, admin, user):
     """増減の理由が管理側から見えること。問い合わせ対応の起点になる"""
     from services import campaign_service
 
-    campaign_service.grant_reward(session, user)
-    session.commit()
+    complete_registration(session, user)
 
     body = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()
     tx = body["point_transactions"]
@@ -372,8 +371,7 @@ def test_user_detail_reports_ledger_drift(client, session, admin, user):
     """
     from services import campaign_service
 
-    campaign_service.grant_reward(session, user)
-    session.commit()
+    complete_registration(session, user)
 
     body = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()
     assert body["ledger_total"] == body["user"]["points"]  # 一致が正常
@@ -391,8 +389,7 @@ def test_user_detail_includes_campaign_progress(client, session, user, admin):
     """先着番号は登録順（users.id）で決まるので、user を先に作る"""
     from services import campaign_service
 
-    campaign_service.grant_reward(session, user)
-    session.commit()
+    complete_registration(session, user)
 
     c = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()["campaign"]
     assert c["position"] == 1
@@ -417,8 +414,8 @@ def test_user_detail_includes_referral(client, session, admin, user):
     session.commit()
     session.refresh(invitee)
     referral_service.claim(session, invitee, code)
-    # 成立は招待された人が電話番号を登録したとき
-    client.post("/api/v1/phone", headers=auth(invitee), json={"phone": "987654321"})
+    # 成立は招待された人がタスクで稼いだとき
+    earn_from_task(session, invitee, 500, "inv-d-t1")
 
     r = client.get(f"/api/v1/admin/users/{user.id}", headers=auth(admin)).json()["referral"]
     assert r["code"] == code
@@ -445,8 +442,7 @@ def test_campaign_exclusion_revokes_and_frees_slot(client, session, admin):
     session.add(u)
     session.commit()
     session.refresh(u)
-    campaign_service.grant_reward(session, u)
-    session.commit()
+    complete_registration(session, u, phone="987654322")
     assert client.get("/api/v1/campaign/status").json()["remaining"] == 0
 
     res = client.post(

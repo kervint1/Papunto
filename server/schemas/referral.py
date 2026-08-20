@@ -13,9 +13,10 @@ class ReferralMe(BaseModel):
     settled: int  # 成立した人数
     earned_points: int  # これまでに得たポイント
     max_per_user: int
-    # 招待された人が電話番号を登録するまで成立しない。
-    # 画面でその条件を説明するために、待っている件数を返す
+    # 招待された人がタスクで稼ぐまで成立しない。
+    # 待っている件数と必要額を返す（名前は出さない）
     pending: int
+    required_earnings: int
 
     # --- 招待された側としての状態 ---
     # 誰に招待されたか。未招待なら None

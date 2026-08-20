@@ -23,6 +23,12 @@ DEFAULT_REFERRAL_REWARD_POINTS = 200
 # 上限が無くなる。成立には招待された人ごとに実在のSIMが1枚要るので
 # 大量には作れないが、上限で被害額を確定させておく
 DEFAULT_REFERRAL_MAX_PER_USER = 10
+# 招待が成立するのに、招待された人がタスクで稼ぐ必要のあるポイント。
+#
+# 件数ではなく金額で見るのは、件数だと**一番安い案件を並べるだけ**で
+# 済んでしまうため（案件は45ptから900ptまで幅がある）。
+# 既定の500ptは「友達が自力で交換できる所まで来たら報酬」という意味。
+DEFAULT_REFERRAL_REQUIRED_EARNINGS = 500
 
 
 class CampaignSetting(SQLModel, table=True):
@@ -50,6 +56,7 @@ class CampaignSetting(SQLModel, table=True):
 
     referral_reward_points: int = Field(default=DEFAULT_REFERRAL_REWARD_POINTS)
     referral_max_per_user: int = Field(default=DEFAULT_REFERRAL_MAX_PER_USER)
+    referral_required_earnings: int = Field(default=DEFAULT_REFERRAL_REQUIRED_EARNINGS)
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # 誰が最後に変えたか。金の出入りに効く設定なので追えるようにする

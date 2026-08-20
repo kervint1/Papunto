@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 from models import PointTransaction, User, Withdrawal
 from services import campaign_service, points_service, referral_service
 from services.auth_service import AuthService
-from tests.conftest import set_campaign
+from tests.conftest import complete_registration, earn_from_task, set_campaign
 
 
 def auth(u: User) -> dict:
@@ -24,8 +24,11 @@ def auth(u: User) -> dict:
 
 
 def make_user(session: Session, suffix: str) -> User:
+    """登録と同じ状態を作る。**枠の確保まで**行い、ポイントは渡さない"""
     u = User(provider_user_id=f"g-{suffix}", email=f"{suffix}@example.com", name=suffix)
     session.add(u)
+    session.flush()
+    campaign_service.reserve_slot(session, u)
     session.commit()
     session.refresh(u)
     return u
@@ -52,9 +55,8 @@ def assert_balanced(session: Session, user: User):
 # ---------------------------------------------------------------- 記録されること
 
 def test_campaign_reward_is_recorded(session, user):
-    """発端の不具合。500ptが履歴に出ないと「理由の分からない残高」になる"""
-    campaign_service.grant_reward(session, user)
-    session.commit()
+    """発端の不具合。履歴に出ないと「理由の分からない残高」になる"""
+    complete_registration(session, user)
 
     tx = session.exec(select(PointTransaction)).one()
     assert tx.kind == "campaign"
@@ -64,11 +66,12 @@ def test_campaign_reward_is_recorded(session, user):
 
 
 def test_referral_reward_is_recorded(client, session, user):
+    set_campaign(session, referral_required_earnings=500)
     code = referral_service.ensure_code(session, user)
     invitee = make_user(session, "amigo")
     client.post("/api/v1/referral/claim", headers=auth(invitee), json={"code": code})
-    # 成立は招待された人が電話番号を登録したとき
-    client.post("/api/v1/phone", headers=auth(invitee), json={"phone": "987654321"})
+    # 成立は招待された人がタスクで稼いだとき
+    earn_from_task(session, invitee, 500, "amigo-t1")
 
     tx = session.exec(
         select(PointTransaction).where(PointTransaction.kind == "referral")
@@ -127,8 +130,7 @@ def test_rejected_withdrawal_records_refund(client, session, user):
 # ---------------------------------------------------------------- 履歴API
 
 def test_history_is_newest_first(client, session, user):
-    campaign_service.grant_reward(session, user)
-    session.commit()
+    complete_registration(session, user)
     points_service.record(session, user=user, points=-100, kind="adjustment", note="test")
     user.points -= 100
     session.commit()

@@ -33,8 +33,16 @@ class User(SQLModel, table=True):
     # 伝え間違えないよう紛らわしい文字（0/O, 1/I/L）を除いた8文字にする。
     # 初回に /referral/me を叩いた時点で発行する（全員に配らない）
     referral_code: Optional[str] = Field(default=None, unique=True, index=True)
+    # 先着枠を確保した時刻。**枠の判定はこれで行う**。
+    #
+    # 付与（campaign_reward_granted_at）と分けているのは、登録した時点では
+    # ポイントを渡さないため。登録だけで付与すると、メールアドレスを大量に
+    # 作るだけで盗めるものが生まれる（マジックリンクがあるので電話番号も
+    # Googleアカウントも要らない）。
+    campaign_reserved_at: Optional[datetime] = Field(default=None, index=True)
     # 事前登録キャンペーンの報酬を付与した時刻。
     # 二重付与を防ぐためと、誰が対象になったかを後から追えるようにするため
+    # ⚠️ 付与は**電話番号を登録したとき**。登録時ではない
     campaign_reward_granted_at: Optional[datetime] = Field(default=None, index=True)
     # 残りの200ptを付与した時刻。タスクを規定数こなすと入る。
     # 分けて持つのは「登録しただけの人」と「実際に動いた人」を区別するため

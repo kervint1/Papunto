@@ -4,17 +4,21 @@
 友達招待は同じ200円で友達が実際に登録し、紹介者の信用も乗る。
 ペルーはWhatsApp中心なので、この差が特に大きい。
 
-## 成立は「招待された人が電話番号を登録したとき」
+## 成立は「招待された人がタスクで一定額を稼いだとき」
 
 登録した時点で成立させると、**メールアドレスを10個作って自分で自分を招待するだけ**で
 報酬が積み上がる。マジックリンクのログインがあるので、電話番号もGoogleアカウントも
 要らない。メールは無料で無限に作れる。
 
-電話番号を条件にすると、成立ごとに**実在のSIMが1枚要る**。費用も手間もかかるので、
-メールとは桁が違う。UNIQUE制約もあるため使い回せない。
+タスクの実績を条件にすると、成立ごとに**本物のASPの成果**が要る。つまり
+farming をやるほど**こちらの売上も増える**ので、攻撃が自滅する。
 
-⚠️ 招待された人に電話番号を**強制はしない**。登録しなくても本人の300ptは入る。
-   待つのは招待した側の報酬だけ。
+件数ではなく獲得ポイントで見る。件数だと一番安い案件を並べるだけで済むため。
+
+⚠️ 数えるのは**タスクの報酬だけ**。キャンペーン報酬や招待報酬は数えない。
+   あれはこちらの支出であって、収益ではない。
+
+⚠️ 招待された人に何も強制はしない。待つのは招待した側の報酬だけ。
 
 ⚠️ Notionの当初案は「招待された側が3タスク完了で成立」だったが、その3タスクに
    「友達を1人招待」が含まれており循環していた（AはBの3タスク完了待ち、Bの
@@ -74,14 +78,28 @@ def ensure_code(session: Session, user: User) -> str:
     raise RuntimeError("招待コードの発行に失敗した（衝突が続いた）")
 
 
-def is_settled_condition_met(session: Session, invitee: User) -> bool:
-    """招待された人が電話番号を登録していれば成立。
+def task_earnings(session: Session, user: User) -> int:
+    """タスクで稼いだポイントの合計。
 
-    ⚠️ 登録した時点で成立させないこと。メールを10個作って自分で自分を
-       招待するだけで報酬が積み上がる（マジックリンクがあるので電話番号も
-       Googleアカウントも不要）。
+    ⚠️ kind="offer" だけを数える。キャンペーン報酬や招待報酬はこちらの支出で、
+       収益ではないため
     """
-    return invitee.phone is not None
+    from models import PointTransaction
+
+    return int(
+        session.exec(
+            select(func.coalesce(func.sum(PointTransaction.points), 0)).where(
+                PointTransaction.user_id == user.id,
+                PointTransaction.kind == "offer",
+            )
+        ).one()
+    )
+
+
+def is_settled_condition_met(session: Session, invitee: User) -> bool:
+    """招待された人がタスクで規定額を稼いでいれば成立"""
+    required = campaign_service.get_settings(session).referral_required_earnings
+    return task_earnings(session, invitee) >= required
 
 
 def settled_count(session: Session, inviter: User) -> int:
@@ -204,7 +222,7 @@ def try_settle(session: Session, referral: Referral) -> bool:
 def settle_for_invitee(session: Session, invitee: User) -> bool:
     """招待された側の状況が変わったときに、成立を試す。
 
-    電話番号の登録から呼ぶ（第2段階の成立条件がこれのため）
+    **成果が承認されたとき**に呼ぶ（成立条件がタスクの実績のため）
     """
     referral = session.exec(
         select(Referral).where(Referral.invitee_user_id == invitee.id)

@@ -21,8 +21,11 @@ def auth(u: User) -> dict:
 
 
 def make_user(session: Session, suffix: str) -> User:
+    """登録と同じ状態を作る。**枠の確保まで**行い、ポイントは渡さない"""
     u = User(provider_user_id=f"g-{suffix}", email=f"{suffix}@example.com", name=suffix)
     session.add(u)
+    session.flush()
+    campaign_service.reserve_slot(session, u)
     session.commit()
     session.refresh(u)
     return u
@@ -91,34 +94,37 @@ def test_stops_at_limit(session):
     assert campaign_service.granted_count(session) == 2
 
 
-def test_counts_granted_not_registered(session):
-    """登録者数ではなく付与済み数で数える。
-    キャンペーン開始前に登録したユーザーが枠を消費しないように"""
-    set_campaign(session, reward_points_initial=500, slot_limit=1)
+def test_slot_is_consumed_by_reservation_not_by_grant(session):
+    """枠は**確保**で埋まる。付与はその後（電話番号の登録時）。
 
-    # 開始前からいるユーザー（付与されていない）
-    make_user(session, "old1")
-    make_user(session, "old2")
-    assert campaign_service.granted_count(session) == 0
+    付与済みで数えると、登録はしたが電話番号をまだ入れていない人が
+    枠を消費していないことになり、残り枠の表示が実態とずれる
+    """
+    set_campaign(session, slot_limit=1)
 
-    # 新規は枠を使える
-    newcomer = make_user(session, "new")
-    assert campaign_service.grant_reward(session, newcomer) is True
+    first = make_user(session, "res1")
+    assert campaign_service.reserved_count(session) == 1
+    assert campaign_service.granted_count(session) == 0  # まだ付与されていない
+
+    # 枠は埋まっているので次の人は確保できない
+    second = make_user(session, "res2")
+    assert second.campaign_reserved_at is None
+    assert campaign_service.grant_reward(session, second) is False
+
+    # 確保できた人は電話番号を登録すれば付与される
+    assert campaign_service.grant_reward(session, first) is True
 
 
 def test_limit_change_reopens_slots(session):
     """100名で始めて増やす運用。設定を変えるだけで再開できる"""
-    set_campaign(session, reward_points_initial=500, slot_limit=1)
+    set_campaign(session, slot_limit=1)
 
-    first = make_user(session, "f1")
-    campaign_service.grant_reward(session, first)
-    session.commit()
-
+    make_user(session, "f1")
     second = make_user(session, "f2")
-    assert campaign_service.grant_reward(session, second) is False
+    assert second.campaign_reserved_at is None  # 枠が無い
 
     set_campaign(session, slot_limit=2)
-    assert campaign_service.grant_reward(session, second) is True
+    assert campaign_service.reserve_slot(session, second) is True
 
 
 # ---------------------------------------------------------------- ログインとの連携
@@ -278,13 +284,13 @@ def test_excluded_user_gets_nothing(session):
     assert u.points == 0
 
 
-def test_admin_gets_nothing(session):
-    """除外の設定を忘れたときの保険"""
-    u = make_user(session, "ex2")
-    u.is_admin = True
+def test_admin_does_not_reserve_a_slot(session):
+    """除外の設定を忘れたときの保険。枠の確保の段階で止める"""
+    u = User(provider_user_id="g-ex2", email="ex2@example.com", is_admin=True)
     session.add(u)
-    session.commit()
+    session.flush()
 
+    assert campaign_service.reserve_slot(session, u) is False
     assert campaign_service.grant_reward(session, u) is False
 
 

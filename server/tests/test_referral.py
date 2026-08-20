@@ -14,9 +14,9 @@ import pytest
 from sqlmodel import Session, select
 
 from models import Referral, User
-from services import referral_service
+from services import campaign_service, referral_service
 from services.auth_service import AuthService
-from tests.conftest import set_campaign
+from tests.conftest import earn_from_task, set_campaign
 
 
 def auth(u: User) -> dict:
@@ -24,8 +24,11 @@ def auth(u: User) -> dict:
 
 
 def make_user(session: Session, suffix: str) -> User:
+    """登録と同じ状態を作る。**枠の確保まで**行い、ポイントは渡さない"""
     u = User(provider_user_id=f"g-{suffix}", email=f"{suffix}@example.com", name=suffix)
     session.add(u)
+    session.flush()
+    campaign_service.reserve_slot(session, u)
     session.commit()
     session.refresh(u)
     return u
@@ -79,8 +82,12 @@ def test_claim_alone_does_not_settle(client, session, inviter):
     assert referral.settled_at is None
 
 
-def test_settles_when_invitee_registers_a_phone(client, session, inviter):
-    """成立ごとに実在のSIMが1枚要る。メールとは桁が違う"""
+def test_settles_when_invitee_earns_from_tasks(client, session, inviter):
+    """成立ごとに**本物のASPの成果**が要る。
+
+    farming をやるほどこちらの売上も増えるので、攻撃が自滅する
+    """
+    set_campaign(session, referral_required_earnings=500)
     code = referral_service.ensure_code(session, inviter)
     invitee = make_user(session, "invitee2")
 
@@ -88,13 +95,13 @@ def test_settles_when_invitee_registers_a_phone(client, session, inviter):
     session.refresh(inviter)
     assert inviter.points == 0
 
-    referral = session.exec(select(Referral)).one()
-    assert referral.settled_at is None
+    # 途中までではまだ成立しない
+    earn_from_task(session, invitee, 300, "inv2-t1")
+    session.refresh(inviter)
+    assert inviter.points == 0
 
-    # 電話番号を登録すると成立する
-    res = client.post("/api/v1/phone", headers=auth(invitee), json={"phone": "987654321"})
-    assert res.status_code == 200
-
+    # 閾値に届くと成立する
+    earn_from_task(session, invitee, 200, "inv2-t2")
     session.refresh(inviter)
     assert inviter.points == 200
 
@@ -164,9 +171,7 @@ def test_stops_at_max_per_user(client, session, inviter):
     for i in range(3):
         invitee = make_user(session, f"lim{i}")
         client.post("/api/v1/referral/claim", headers=auth(invitee), json={"code": code})
-        client.post(
-            "/api/v1/phone", headers=auth(invitee), json={"phone": f"98765432{i}"}
-        )
+        earn_from_task(session, invitee, 500, f"lim{i}-t1")
 
     session.refresh(inviter)
     assert inviter.points == 400  # 2件分だけ
@@ -178,18 +183,19 @@ def test_stops_at_max_per_user(client, session, inviter):
 # ---------------------------------------------------------------- 集計
 
 def test_counts_are_reported(client, session, inviter):
+    set_campaign(session, referral_required_earnings=500)
     code = referral_service.ensure_code(session, inviter)
     for i in range(2):
         invitee = make_user(session, f"cnt{i}")
         client.post("/api/v1/referral/claim", headers=auth(invitee), json={"code": code})
-    # 1人だけ電話番号を登録する
+    # 1人だけタスクで稼ぐ
     first = session.exec(select(User).where(User.email == "cnt0@example.com")).one()
-    client.post("/api/v1/phone", headers=auth(first), json={"phone": "987654321"})
+    earn_from_task(session, first, 500, "cnt0-t1")
 
     body = client.get("/api/v1/referral", headers=auth(inviter)).json()
     assert body["total"] == 2
     assert body["settled"] == 1
-    assert body["pending"] == 1  # 電話番号待ち
+    assert body["pending"] == 1  # タスク待ち
     assert body["earned_points"] == 200
 
 
