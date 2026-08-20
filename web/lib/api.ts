@@ -199,6 +199,7 @@ export interface CampaignStatus {
   bonus_required_tasks: number;
   referral_reward_points: number;
   referral_max_per_user: number;
+  referral_required_earnings: number;
   /** ISO日付。nullなら即座に交換できる */
   withdrawals_open_at: string | null;
   withdrawals_open: boolean;
@@ -708,8 +709,10 @@ export interface ReferralMe {
   settled: number;
   earned_points: number;
   max_per_user: number;
-  /** 招待したが、まだ成立していない件数（相手の電話番号登録待ち） */
+  /** 招待したが、まだ成立していない件数（相手のタスク待ち） */
   pending: number;
+  /** 成立に必要な、招待された人のタスク獲得ポイント */
+  required_earnings: number;
   /** 自分を招待した人の名前。未招待なら null */
   invited_by: string | null;
   /** コードを手入力できる状態か */

@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { CampaignCard } from "@/components/CampaignCard";
+import { PreRegistroView } from "@/components/PreRegistroView";
 import { InviteCard } from "@/components/InviteCard";
-import { PhoneReadyCard } from "@/components/PhoneReadyCard";
 import { InviteCodeEntry } from "@/components/InviteCodeEntry";
 import { Header } from "@/components/Header";
 import { Progress } from "@/components/ui/progress";
 import { useMe } from "@/hooks/useMe";
 import {
+  getCampaignSlot,
   getCampaignStatus,
   getOffers,
   getReferral,
+  type CampaignSlot,
   type CampaignStatus,
   type Offer,
   type ReferralMe,
@@ -61,6 +62,12 @@ export default function HomePage() {
   const [campaign, setCampaign] = useState<CampaignStatus | null>(null);
 
   const [referral, setReferral] = useState<ReferralMe | null>(null);
+  const [slot, setSlot] = useState<CampaignSlot | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    getCampaignSlot(token).then(setSlot).catch(() => setSlot(null));
+  }, [token]);
 
   useEffect(() => {
     getCampaignStatus().then(setCampaign).catch(() => setCampaign(null));
@@ -110,6 +117,25 @@ export default function HomePage() {
   }, [onVisible]);
 
   const points = me?.points ?? 0;
+
+  /**
+   * 交換が開くまではアプリを見せない。
+   *
+   * ⚠️ 中にタスクが1件も無い期間に空のアプリを見せると「登録したのに
+   *    何もない」になる。事前登録は待機リストなので、確認ページとして扱う。
+   */
+  if (campaign && !campaign.withdrawals_open && slot) {
+    return (
+      <PreRegistroView
+        token={token}
+        status={campaign}
+        slot={slot}
+        referral={referral}
+        points={points}
+      />
+    );
+  }
+
   const minPoints = me?.min_withdrawal_points ?? 500;
   const remaining = Math.max(minPoints - points, 0);
   const progress = Math.min((points / minPoints) * 100, 100);
@@ -147,12 +173,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 事前登録の状態。交換が開くまでの間、案件が0件で空になるため、
-            番号・残高・開放日を出して「次に何が起きるか」を示す */}
-        <div className="mt-6">
-          <CampaignCard token={token} status={campaign} referral={referral} />
-        </div>
-
         {/* 招待コードの入力。招待された側が探す画面なので、
             「友達を招待して稼ごう」のカードより前に出す */}
         {referral?.can_claim && (
@@ -164,11 +184,6 @@ export default function HomePage() {
         {/* 招待。案件がまだ0件なので、いま画面上で唯一「やれること」になる */}
         <div className="mt-4">
           <InviteCard data={referral} />
-        </div>
-
-        {/* 交換の準備。任意だが、招待の成立条件がこれなので経路が要る */}
-        <div className="mt-4">
-          <PhoneReadyCard token={token} />
         </div>
 
         {/* Tareas: Monlix las sirve en un iframe; con CPALead pintamos la lista nosotros */}

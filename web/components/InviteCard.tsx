@@ -11,7 +11,7 @@ import { type ReferralMe } from "@/lib/api";
  * ⚠️ 「あなたを招待したのは誰か」をここに出さないこと。このカードは
  *    「招待すると200pt もらえる」と書いてあるので、隣に置くと
  *    「呼んだ人は200pt もらったのに自分は何も無い」と読める。
- *    登録直後に最初に伝える情報ではない。招待元の表示は CampaignCard 側。
+ *    登録直後に最初に伝える情報ではない。招待元は事前登録の確認ページ側で出す。
  *
  * ペルーはWhatsApp中心なので、**共有導線をWhatsAppに寄せる**。
  * 汎用の共有シートより、押した先が想像できる方が踏まれる。
@@ -61,7 +61,8 @@ export function InviteCard({ data }: { data: ReferralMe | null }) {
       <p className="mt-2 text-sm text-neutral-600">
         {/* ⚠️ 条件を正確に書く。登録だけで出ると誤解されると、
             成立しないときに「だまされた」と受け取られる */}
-        Recibes los puntos cuando tu amigo registra su número de Yape.
+        Recibes los puntos cuando tu amigo gane{" "}
+        {data.required_earnings.toLocaleString("es-PE")} pts haciendo tareas.
       </p>
       {/* 期間限定だと明示しておく。後で金額を下げるのが
           「キャンペーン終了」として自然に通るようにするため */}
@@ -109,9 +110,10 @@ export function InviteCard({ data }: { data: ReferralMe | null }) {
             <p className="text-xs text-neutral-500">Confirmados</p>
             <p className="mt-0.5 text-neutral-900">{data.settled}</p>
           </div>
+          {/* ⚠️ 友達の名前は出さない。誰を招待したかは本人の情報 */}
           {data.pending > 0 && (
             <div>
-              <p className="text-xs text-neutral-500">Falta su número</p>
+              <p className="text-xs text-neutral-500">En proceso</p>
               <p className="mt-0.5 text-neutral-900">{data.pending}</p>
             </div>
           )}
