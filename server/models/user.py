@@ -53,6 +53,9 @@ class User(SQLModel, table=True):
     # ⚠️ is_admin では代用できない。管理者フラグは**登録の後に**付けるので、
     #    その時点では既に付与が済んでいる。除外は明示的に持つ
     campaign_excluded: bool = Field(default=False, index=True)
+    # 登録完了メールを送った時刻。二重送信を防ぐ。
+    # ⚠️ 送信の成否で判断しない。送れなかったときに記録すると、二度と送れなくなる
+    welcome_email_sent_at: Optional[datetime] = Field(default=None)
     # 管理画面の利用可否。昇格は画面から行わずDBクライアントで直接UPDATEする
     # （管理画面が乗っ取られても管理者を増やされないようにするため）
     is_admin: bool = Field(default=False, index=True)

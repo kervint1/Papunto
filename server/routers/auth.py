@@ -25,12 +25,25 @@ from services import (
     identity_service,
     magic_link_service,
     mail_service,
+    welcome_service,
 )
 from services.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+def _issue_token(session: Session, user) -> TokenResponse:
+    """ログインの締め。3経路（Google / Facebook / メール）で共通。
+
+    ⚠️ メールの送信に失敗してもログインは成功させる。入れなくなる方が
+       損失が大きい（送信済みを記録しないので、次回のログインで再試行される）
+    """
+    session.commit()
+    session.refresh(user)
+    welcome_service.send_if_needed(session, user)
+    return TokenResponse(access_token=AuthService.create_access_token(user.id))
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -55,10 +68,7 @@ def login(body: LoginRequest, session: Session = Depends(get_session)):
         name=info.get("name"),
         avatar_url=info.get("picture"),
     )
-    session.commit()
-    session.refresh(user)
-
-    return TokenResponse(access_token=AuthService.create_access_token(user.id))
+    return _issue_token(session, user)
 
 
 # ---------------------------------------------------- メールのマジックリンク
@@ -118,10 +128,7 @@ def verify_magic_link(body: MagicLinkVerify, session: Session = Depends(get_sess
         provider_user_id=email,
         email=email,
     )
-    session.commit()
-    session.refresh(user)
-
-    return TokenResponse(access_token=AuthService.create_access_token(user.id))
+    return _issue_token(session, user)
 
 
 # ---------------------------------------------------------- Facebookログイン
@@ -151,7 +158,4 @@ def login_facebook(body: FacebookLoginRequest, session: Session = Depends(get_se
         name=profile.get("name"),
         avatar_url=profile.get("avatar_url"),
     )
-    session.commit()
-    session.refresh(user)
-
-    return TokenResponse(access_token=AuthService.create_access_token(user.id))
+    return _issue_token(session, user)
