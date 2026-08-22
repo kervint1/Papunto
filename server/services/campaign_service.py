@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from sqlmodel import Session, func, select
 
 from models import CampaignSetting, User
-from services import points_service
+from services import account_service, points_service
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +169,11 @@ def grant_reward(session: Session, user: User) -> bool:
     if user.campaign_reserved_at is None:
         return False
     if user.campaign_excluded:
+        return False
+    # 退会して再登録した人に、同じ番号でもう一度渡さない。
+    # ⚠️ 番号はここでしか手に入らない（退会時に消えるので、後からは辿れない）
+    if user.phone and account_service.campaign_already_claimed(session, user.phone):
+        logger.info("退会済みの番号なので再付与しない: user=%s", user.id)
         return False
     settings = get_settings(session)
 

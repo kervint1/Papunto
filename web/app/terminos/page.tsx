@@ -302,13 +302,15 @@ export default function TerminosPage() {
               obtenidos de forma fraudulenta, deberá restituir su valor al
               Titular.
             </p>
+            {/* ⚠️ 自分で削除できるようになったので、メールでの依頼を前提にしない。
+                Google Play の要件でもアプリ内とWebの両方に導線が要る */}
             <p>
-              El Usuario puede solicitar la baja de su cuenta en cualquier
-              momento escribiendo a{" "}
-              <a href="mailto:kervint1@gmail.com" className="underline">
-                kervint1@gmail.com
-              </a>
-              . Al darse de baja, el Usuario pierde los Puntos no canjeados.
+              El Usuario puede eliminar su cuenta en cualquier momento desde{" "}
+              <a href="/eliminar-cuenta" className="underline">
+                papunto.pe/eliminar-cuenta
+              </a>{" "}
+              o desde la sección <strong>Mi cuenta</strong> en la aplicación.
+              Al darse de baja, el Usuario pierde los Puntos no canjeados.
             </p>
           </Section>
 

@@ -392,6 +392,17 @@ export default function CuentaPage() {
           <LogOut className="h-4 w-4" />
           Cerrar sesión
         </button>
+
+        {/* ⚠️ Google Play はアカウントを作れるアプリに削除の導線を義務づけている。
+            目立たせる必要はないが、隠してもいけない */}
+        <div className="mt-3 text-center">
+          <Link
+            href="/eliminar-cuenta"
+            className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-700"
+          >
+            Eliminar mi cuenta
+          </Link>
+        </div>
       </main>
     </div>
   );

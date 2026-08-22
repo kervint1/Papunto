@@ -120,6 +120,8 @@ async function apiFetch<T>(
       body?.error ?? { code: "UNKNOWN", message: "Error de conexión" }
     );
   }
+  // 204はボディが無いので res.json() が落ちる（削除系がこれを返す）
+  if (res.status === 204) return undefined as T;
   return res.json();
 }
 
@@ -130,6 +132,14 @@ function normalizeWithdrawal(w: Withdrawal): Withdrawal {
 
 function normalizeTopUp(t: TopUp): TopUp {
   return { ...t, amount_soles: Number(t.amount_soles) };
+}
+
+/** 退会。**行は消さず**、個人が特定できる値だけ落として UNIQUE を空ける */
+export function deleteAccount(token: string, reason?: string): Promise<void> {
+  return apiFetch("/api/v1/me", token, {
+    method: "DELETE",
+    body: JSON.stringify({ reason }),
+  });
 }
 
 export function getMe(token: string): Promise<Me> {
@@ -792,4 +802,22 @@ export function setCampaignExclusion(
     token,
     { method: "POST", body: JSON.stringify({ excluded }) }
   );
+}
+
+/**
+ * 管理者権限の付け外し。
+ *
+ * ⚠️ 元々はDBから直接UPDATEする運用だった（管理画面が乗っ取られても管理者を
+ *    増やされないようにするため）。画面から行える以上、操作は必ず
+ *    admin_logs に残る。自分自身は変更できない。
+ */
+export function setUserAdmin(
+  token: string,
+  userId: number,
+  isAdmin: boolean
+): Promise<AdminUser> {
+  return apiFetch<AdminUser>(`/api/v1/admin/users/${userId}/admin`, token, {
+    method: "POST",
+    body: JSON.stringify({ is_admin: isAdmin }),
+  });
 }

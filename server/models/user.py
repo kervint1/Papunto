@@ -56,7 +56,24 @@ class User(SQLModel, table=True):
     # 登録完了メールを送った時刻。二重送信を防ぐ。
     # ⚠️ 送信の成否で判断しない。送れなかったときに記録すると、二度と送れなくなる
     welcome_email_sent_at: Optional[datetime] = Field(default=None)
-    # 管理画面の利用可否。昇格は画面から行わずDBクライアントで直接UPDATEする
-    # （管理画面が乗っ取られても管理者を増やされないようにするため）
+    # 管理画面の利用可否。
+    #
+    # ⚠️ 昇格・降格は管理画面から行えるが、**自分自身は変更できない**。
+    #    管理者セッションを奪われたときに管理者を増やして居座られるのが
+    #    元々の懸念なので、操作は必ず admin_logs に残す。
     is_admin: bool = Field(default=False, index=True)
+    # 退会した時刻。**物理削除はしない**。
+    #
+    # ポイントの台帳や成果の記録が外部キーで刺さっており、消すと会計が壊れる。
+    # 代わりに個人が特定できる値（メール・氏名・アバター・電話番号）を落とし、
+    # UNIQUE制約を空けて再登録できるようにする。
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
+    # 退会時に電話番号のハッシュだけ残す。番号そのものは消す。
+    #
+    # ⚠️ これが無いと「退会 → 再登録」で事前登録の300ptを何度でも受け取れる。
+    #    電話番号はキャンペーンの不正対策の土台なので、番号を消しても
+    #    「この番号は受給済み」という事実だけは残す必要がある。
+    #    ハッシュにはサーバー側の秘密（SECRET_KEY）を混ぜるので、
+    #    DBだけ漏れても総当たりで番号は復元できない
+    phone_hash: Optional[str] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

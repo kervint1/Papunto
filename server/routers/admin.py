@@ -51,6 +51,7 @@ from schemas.admin import (
     Page,
     WithdrawalActionBody,
 )
+from schemas.admin import AdminSetAdminBody
 from schemas.offer import OfferList, OfferRead
 from services import admin_service, campaign_service, points_service, referral_service
 from services.cpalead_service import CPALeadError, CPALeadService
@@ -665,3 +666,47 @@ def list_admin_logs(
         ],
         page=meta,
     )
+
+
+# --------------------------------------------------------- 管理者権限の付与
+
+@router.post("/users/{user_id}/admin", response_model=AdminUserRead)
+def set_admin(
+    user_id: int,
+    body: AdminSetAdminBody,
+    admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """管理者権限を付け外しする。
+
+    ⚠️ 元々は「管理画面が乗っ取られても管理者を増やされないように」DBから
+       直接UPDATEする運用にしていた。画面から行えるようにした以上、
+       **必ず admin_logs に残す**のが最低条件になる。
+
+    ⚠️ 自分自身は変更できない。降格して管理者が0人になると誰も入れなくなり、
+       DBを直接触るまで復旧できない。
+    """
+    if user_id == admin.id:
+        raise ApiError(400, "CANNOT_MODIFY_SELF", "No puedes cambiar tu propio permiso")
+
+    user = session.get(User, user_id)
+    if user is None:
+        raise ApiError(404, "USER_NOT_FOUND", "Usuario no encontrado")
+    if user.deleted_at is not None:
+        raise ApiError(409, "ACCOUNT_DELETED", "Esta cuenta fue eliminada")
+
+    before = user.is_admin
+    user.is_admin = body.is_admin
+    session.add(user)
+    admin_service.log_action(
+        session,
+        admin=admin,
+        action="user.set_admin",
+        target_type="user",
+        target_id=str(user_id),
+        detail={"before": before, "after": body.is_admin, "email": user.email},
+    )
+    session.commit()
+    session.refresh(user)
+    logger.info("管理者権限を変更: user=%s is_admin=%s by=%s", user_id, body.is_admin, admin.id)
+    return AdminUserRead.model_validate(user, from_attributes=True)

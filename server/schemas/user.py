@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MeResponse(BaseModel):
@@ -14,3 +14,9 @@ class MeResponse(BaseModel):
     phone_registered: bool = False
     min_withdrawal_points: int
     points_per_sol: int
+
+
+class DeleteAccountBody(BaseModel):
+    """退会。理由は任意（改善のために聞くだけで、必須にはしない）"""
+
+    reason: Optional[str] = Field(default=None, max_length=500)

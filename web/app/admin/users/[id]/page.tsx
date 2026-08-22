@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { getAdminUser, setCampaignExclusion, type AdminUserDetail } from "@/lib/api";
+import {
+  getAdminUser,
+  setCampaignExclusion,
+  setUserAdmin,
+  type AdminUserDetail,
+} from "@/lib/api";
 
 // 台帳のkindを画面の言葉にする。noteがあればそちらを優先する
 const KIND_LABEL: Record<string, string> = {
@@ -36,6 +41,7 @@ export default function AdminUserDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [adminConfirming, setAdminConfirming] = useState(false);
 
   useEffect(() => {
     if (!token || !params?.id) return;
@@ -55,6 +61,27 @@ export default function AdminUserDetailPage() {
    * 外すときは付与済みの報酬も取り消される（サーバー側）。取り消せないと、
    * 管理者や検証用のアカウントが埋めた枠が永久に戻らない。
    */
+  /**
+   * 管理者権限の付け外し。
+   *
+   * ⚠️ 自分自身は変更できない（サーバー側で400）。降格して管理者が0人に
+   *    なると、DBを直接触るまで誰も入れなくなる。
+   */
+  const toggleAdmin = async (next: boolean) => {
+    if (!token || !data) return;
+    setAdminConfirming(false);
+    setBusy(true);
+    setError(null);
+    try {
+      const user = await setUserAdmin(token, data.user.id, next);
+      setData({ ...data, user });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const toggleExclusion = async (next: boolean) => {
     if (!token || !data) return;
     setConfirming(false);
@@ -101,6 +128,44 @@ export default function AdminUserDetailPage() {
           {u.is_admin && <div className="mt-1 text-xs text-neutral-900">Administrador</div>}
         </Card>
       </div>
+
+      {/* 管理者権限。元々はDBから直接UPDATEする運用だった（管理画面が
+          乗っ取られても管理者を増やされないようにするため）。画面から
+          行えるようにした以上、操作は必ず admin_logs に残る */}
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="text-sm text-neutral-500">Permiso de administrador</h2>
+        <button
+          onClick={() => (u.is_admin ? toggleAdmin(false) : setAdminConfirming(true))}
+          disabled={busy}
+          className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 disabled:opacity-40"
+        >
+          {u.is_admin ? "管理者から外す" : "管理者にする"}
+        </button>
+      </div>
+      {adminConfirming && (
+        <div className="mt-2 rounded-lg border border-red-300 bg-red-50 p-4 text-sm">
+          <p className="text-red-900">
+            <strong>{u.email}</strong> が管理画面に入れるようになります。
+            換金の承認、キャンペーン設定の変更、他のユーザーの権限変更が
+            すべて可能になります。
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => toggleAdmin(true)}
+              disabled={busy}
+              className="rounded-lg bg-red-600 px-4 py-2 text-xs text-white disabled:opacity-50"
+            >
+              管理者にする
+            </button>
+            <button
+              onClick={() => setAdminConfirming(false)}
+              className="rounded-lg border border-neutral-300 px-4 py-2 text-xs"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 事前登録キャンペーンの進み具合。報酬は2段なので、
           初回だけ受け取って止まっている人が見分けられる必要がある */}

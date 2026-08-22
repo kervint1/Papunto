@@ -22,6 +22,10 @@ def get_current_user(
     user = session.get(User, int(payload["sub"]))
     if user is None:
         raise ApiError(401, "USER_NOT_FOUND", "Usuario no encontrado")
+    # ⚠️ 自前JWTは7日有効なので、退会してもトークンは生きたまま残る。
+    #    ここで弾かないと、退会後もAPIを叩き続けられる
+    if user.deleted_at is not None:
+        raise ApiError(401, "ACCOUNT_DELETED", "Esta cuenta fue eliminada")
     return user
 
 

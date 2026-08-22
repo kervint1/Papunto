@@ -247,3 +247,7 @@ class AdminCampaignSettingsUpdate(BaseModel):
     # 開放日を空にする（＝即座に開放する）ときだけ必須。
     # 事前登録中に誤って開放するのを一段止める
     confirm_open_now: bool = False
+
+
+class AdminSetAdminBody(BaseModel):
+    is_admin: bool
