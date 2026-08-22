@@ -23,8 +23,6 @@ class AdminStats(BaseModel):
     complaints_pendientes: int
     postbacks_pending: int
     postback_logs_unverified_7d: int
-    # 未解除の不達。ここが0でないと、その人はマジックリンクで入れない
-    email_blocked: int = 0
     posts_draft: int = 0
 
     # 外部連携が「開発用の設定」のまま本番に出ていないかを、管理画面を開くたびに
@@ -249,25 +247,3 @@ class AdminCampaignSettingsUpdate(BaseModel):
     # 開放日を空にする（＝即座に開放する）ときだけ必須。
     # 事前登録中に誤って開放するのを一段止める
     confirm_open_now: bool = False
-
-
-class AdminEmailEventRead(BaseModel):
-    id: uuid.UUID
-    email: str
-    event_type: str
-    bounce_type: Optional[str] = None
-    reason: Optional[str] = None
-    received_at: datetime
-
-
-class AdminEmailEventList(BaseModel):
-    events: list[AdminEmailEventRead]
-    page: Page
-
-
-class AdminEmailClearBody(BaseModel):
-    email: str
-
-
-class AdminEmailClearResult(BaseModel):
-    cleared: int

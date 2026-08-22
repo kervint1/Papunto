@@ -85,6 +85,11 @@ MAGIC_LINK_DEV_ECHO = os.getenv("MAGIC_LINK_DEV_ECHO", "false").lower() in ("1",
 #    ブロックできる＝任意のユーザーのログインを妨害できてしまうため
 RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "")
 
+# 抑制リストの解除に使うAPIキー。SMTP_PASSWORD と同じ値でも動くが、
+# 送信だけの権限しか無いキーだと DELETE /suppressions が失敗するので分けてある。
+# 未設定でも送信は動く（解除ができなくなるだけ）
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+
 # Reloadly: ポイント→携帯キャリア（Claro/Movistar/Entel/Bitel）チャージ交換
 RELOADLY_CLIENT_ID = os.getenv("RELOADLY_CLIENT_ID", "")
 RELOADLY_CLIENT_SECRET = os.getenv("RELOADLY_CLIENT_SECRET", "")

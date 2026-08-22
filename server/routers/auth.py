@@ -26,6 +26,7 @@ from services import (
     identity_service,
     magic_link_service,
     mail_service,
+    resend_service,
     welcome_service,
 )
 from services.auth_service import AuthService
@@ -84,18 +85,25 @@ def request_magic_link(body: MagicLinkRequest, session: Session = Depends(get_se
     """
     email = str(body.email).strip().lower()
 
-    # 過去にハードバウンス／迷惑メール報告があったアドレスには送らない。
+    # 過去にバウンスしたアドレスは、提供元の抑制リストに載ったままだと
+    # **何度送っても届かない**。原因（相手側の設定や一時的な障害）が直って
+    # いることを期待して、こちらから抑制を外してもう一度だけ送る。
     #
-    # 送っても提供元の抑制リストで止まるため**絶対に届かない**のに、こちらは
-    # 「送った」と返すことになる。届かない相手に送り続けると送信ドメインの
-    # 評判も落ちる。ここで別の入口（Google）へ誘導したほうが早い。
+    # ⚠️ 無制限に繰り返すと、存在しないアドレスに送り続けて送信ドメインの
+    #    評価を落とす。papunto.pe は実績がゼロなので、上限を超えたら諦めて
+    #    別の入口（Google）へ誘導する。
     if email_event_service.is_blocked(session, email):
-        raise ApiError(
-            422,
-            "MAIL_BLOCKED",
-            "No podemos entregar correos a esta dirección. "
-            "Entra con Google o escríbenos para ayudarte.",
-        )
+        if email_event_service.cleared_count(session, email) >= email_event_service.AUTO_CLEAR_LIMIT:
+            raise ApiError(
+                422,
+                "MAIL_BLOCKED",
+                "No podemos entregar correos a esta dirección. "
+                "Entra con Google o escríbenos para ayudarte.",
+            )
+        resend_service.remove_suppression(email)
+        email_event_service.clear(session, email)
+        session.commit()
+        logger.info("抑制を解除して再送を試みる: email=%s", email)
 
     try:
         raw = magic_link_service.issue(session, email)

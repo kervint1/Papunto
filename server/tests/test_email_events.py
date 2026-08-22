@@ -18,7 +18,7 @@ from sqlmodel import Session, select
 
 import config
 from models.email_event import EmailEvent
-from services import email_event_service
+from services import email_event_service, resend_service
 
 SECRET = "whsec_" + base64.b64encode(b"0123456789abcdef0123456789abcdef").decode()
 
@@ -205,21 +205,62 @@ def test_バウンスの形が別でも種別を拾う(client, session: Session)
 
 # ------------------------------------------------------- マジックリンクとの連動
 
-def test_ブロック中はマジックリンクを送らない(client, session: Session, monkeypatch):
-    """送っても抑制リストで止まるので絶対に届かない。
-    「送った」と返すとユーザーが待ち続ける"""
+@pytest.fixture(name="removed")
+def removed_fixture(monkeypatch):
+    """抑制リストの解除を呼んだアドレスを記録する（外部APIは叩かない）"""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        resend_service, "remove_suppression", lambda email: calls.append(email) or True
+    )
     monkeypatch.setattr(config, "MAGIC_LINK_DEV_ECHO", True)
+    return calls
+
+
+def test_バウンス後は抑制を解除して送り直す(client, session: Session, removed):
+    """抑制リストに載ったままだと何度送っても届かない。
+    原因が直っていることを期待して、こちらから外して送る"""
     post(client, payload(email="roto@example.com"))
 
     res = client.post("/api/v1/auth/magic-link", json={"email": "roto@example.com"})
 
+    assert res.status_code == 200
+    assert removed == ["roto@example.com"]
+    # こちら側の記録も解除されている
+    assert email_event_service.is_blocked(session, "roto@example.com") is False
+
+
+def test_解除の上限を超えたら諦める(client, session: Session, removed):
+    """存在しないアドレスに送り続けると、送信ドメインの評価が落ちる。
+    papunto.pe は実績がゼロなので、評価が育つ前に潰れる"""
+    for _ in range(email_event_service.AUTO_CLEAR_LIMIT):
+        post(client, payload(email="roto@example.com"))
+        assert (
+            client.post("/api/v1/auth/magic-link", json={"email": "roto@example.com"}).status_code
+            == 200
+        )
+
+    # 上限に達した状態でもう一度バウンスさせる
+    post(client, payload(email="roto@example.com"))
+    res = client.post("/api/v1/auth/magic-link", json={"email": "roto@example.com"})
+
     assert res.status_code == 422
     assert res.json()["error"]["code"] == "MAIL_BLOCKED"
+    # 諦めた回では解除を呼んでいない
+    assert len(removed) == email_event_service.AUTO_CLEAR_LIMIT
 
 
-def test_ブロックされていなければ従来どおり送る(client, session: Session, monkeypatch):
-    monkeypatch.setattr(config, "MAGIC_LINK_DEV_ECHO", True)
+def test_softバウンスなら解除もしない(client, session: Session, removed):
+    """そもそもブロックしていないので、抑制リストを触る必要がない"""
+    post(client, payload(bounce_type="soft"))
 
+    res = client.post("/api/v1/auth/magic-link", json={"email": "roto@example.com"})
+
+    assert res.status_code == 200
+    assert removed == []
+
+
+def test_バウンスしていなければ解除を呼ばない(client, session: Session, removed):
     res = client.post("/api/v1/auth/magic-link", json={"email": "ok@example.com"})
 
     assert res.status_code == 200
+    assert removed == []

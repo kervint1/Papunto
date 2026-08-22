@@ -28,6 +28,13 @@ BLOCKING_EVENTS = {"email.bounced", "email.complained"}
 # 署名対象に時刻が入っているので、古い配送は再生攻撃として弾く。Svixの推奨値
 TIMESTAMP_TOLERANCE = timedelta(minutes=5)
 
+# 自動で抑制を解除して送り直す回数の上限。
+#
+# 無制限にすると、**存在しないアドレスに何度も送り続ける**ことになる。
+# papunto.pe は送信実績がゼロなので、評価が育つ前に潰れる。
+# 2回にしているのは「相手側の一時的な問題が直った」を数回は救いたいため。
+AUTO_CLEAR_LIMIT = 2
+
 
 def _secret_bytes(secret: str) -> bytes:
     """`whsec_` を外して base64 デコードする。
@@ -149,6 +156,22 @@ def is_blocked(session: Session, email: str) -> bool:
         .where((EmailEvent.bounce_type.is_(None)) | (EmailEvent.bounce_type != "soft"))
     ).first()
     return row is not None
+
+
+def cleared_count(session: Session, email: str) -> int:
+    """これまでに何回、自動で解除したか。
+
+    解除した後にまたバウンスすると新しい行が増えるので、
+    「解除済みの行の数」＝「解除したのに直らなかった回数」になる。
+    """
+    normalized = email.strip().lower()
+    rows = session.exec(
+        select(EmailEvent)
+        .where(EmailEvent.email == normalized)
+        .where(EmailEvent.event_type.in_(BLOCKING_EVENTS))
+        .where(EmailEvent.cleared_at.is_not(None))
+    ).all()
+    return len(rows)
 
 
 def clear(session: Session, email: str) -> int:

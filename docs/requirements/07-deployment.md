@@ -60,6 +60,7 @@ Herokuは buildpack を2段で使い、`server/` だけを切り出している�
 | `SMTP_PASSWORD` | ResendのAPIキー（`re_...`） | 同上 |
 | `MAIL_FROM` | `Papunto <noreply@papunto.pe>` | 差出人がSMTP_USERになる。Resendで認証したドメインと一致させること |
 | `RESEND_WEBHOOK_SECRET` | Resendの `whsec_...` | 配信結果のWebhookが全て403。**不達に気づけなくなる** |
+| `RESEND_API_KEY` | ResendのAPIキー | バウンスしたアドレスへ再送できない（抑制を外せないため）|
 | `MAGIC_LINK_DEV_ECHO` | **設定しない** | 既定false。trueにするとログを見た人が誰でもログインできる |
 
 > **キャンペーンの設定（枠数・報酬・交換の開放日）は環境変数ではない。**
