@@ -86,27 +86,49 @@ export default function LandingPage() {
    *    付与のタイミングを分けてある。番号は不正対策の土台でもある
    *    （1番号1アカウント）。文言が戻ると設計の意味が消える。
    */
+  /**
+   * サービスとして何をするところか。**キャンペーンの手順とは別**。
+   *
+   * これが無いと「S/5もらえる」ことしか書いていないLPになり、詐欺を疑って
+   * いる人が一番知りたい「何をするアプリか」が伝わらない。日付や約束は
+   * 入れない（それは下の「Cómo funciona」の仕事）。
+   */
+  const ABOUT = [
+    {
+      title: "Creas tu cuenta",
+      desc: "Con tu correo, Google o Facebook. Gratis y sin tarjeta.",
+      img: "/lp/paso-cuenta.jpg",
+      alt: "Pantalla de registro de Papunto en un celular",
+    },
+    {
+      title: "Completas tareas",
+      desc: "Encuestas, registros y pruebas de apps. Cada una te da puntos.",
+      img: "/lp/paso-tareas.jpg",
+      alt: "Lista de tareas y puntos de Papunto",
+    },
+    {
+      title: "Cambias tus puntos por dinero",
+      desc: "Te lo enviamos por Yape, a tu número de celular.",
+      img: "/lp/paso-cobro.jpg",
+      alt: "Puntos de Papunto convertidos en dinero por Yape",
+    },
+  ];
+
   const STEPS = [
     {
       when: "Hoy",
       title: "Crea tu cuenta",
       desc: `Reservamos tu cupo entre los primeros 100. Lo guardamos ${t.reservationDays} días.`,
-      img: "/lp/paso-cuenta.jpg",
-      alt: "Pantalla de registro de Papunto en un celular",
     },
     {
       when: "Hoy",
       title: "Registra tu número de Yape",
       desc: `Te acreditamos ${t.initial} puntos (S/ ${soles(t.initial)}) al instante. Es el número donde vas a cobrar.`,
-      img: "/lp/paso-cobro.jpg",
-      alt: "Puntos de Papunto convertidos en dinero por Yape",
     },
     {
       when: fecha,
       title: "Abrimos las tareas",
       desc: `Completa 1 tarea y recibes ${t.bonus} puntos más. Desde ${total} puntos (S/ ${soles(total)}) pides tu dinero por Yape.`,
-      img: "/lp/paso-tareas.jpg",
-      alt: "Lista de tareas y puntos de Papunto",
     },
   ];
 
@@ -226,6 +248,33 @@ export default function LandingPage() {
         </p>
       </Section>
 
+      {/* サービスの説明。キャンペーンの手順（下）とは役割が違う。
+          「S/5もらえる」しか書いていないと、詐欺を疑っている人が一番
+          知りたい「何をするアプリか」が伝わらない */}
+      <Section kicker="The app" title="Qué es Papunto">
+        <p className="mt-6 text-neutral-500">
+          Ganas puntos completando tareas y los cambias por dinero.
+        </p>
+        <div className="mt-10 grid gap-8 sm:grid-cols-3">
+          {ABOUT.map((a) => (
+            <div key={a.title}>
+              {/* 挿絵。読めなくても説明は成立するので lazy でよい */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={a.img}
+                alt={a.alt}
+                loading="lazy"
+                className="aspect-[4/3] w-full rounded-xl bg-neutral-50 object-cover"
+              />
+              <div className="mt-4 text-neutral-900">{a.title}</div>
+              <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+                {a.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section id="pasos" kicker="How it works" title="Cómo funciona">
         <p className="mt-6 text-neutral-500">
           Tres pasos, de hoy hasta el día que cobras.
@@ -234,7 +283,7 @@ export default function LandingPage() {
           {STEPS.map((s, i) => (
             <li
               key={s.title}
-              className="grid gap-4 border-t border-black/10 py-7 sm:grid-cols-[56px_112px_minmax(0,1fr)_minmax(0,260px)] sm:items-center sm:gap-6"
+              className="grid gap-2 border-t border-black/10 py-7 sm:grid-cols-[64px_128px_1fr] sm:gap-6"
             >
               <span className="font-mono text-sm text-neutral-400">0{i + 1}</span>
               <span className="font-mono text-sm text-neutral-500">{s.when}</span>
@@ -242,15 +291,6 @@ export default function LandingPage() {
                 <div className="text-lg text-neutral-900">{s.title}</div>
                 <p className="mt-1 text-neutral-600">{s.desc}</p>
               </div>
-              {/* 挿絵。装飾なので、読めなくても手順は成立する。
-                  next/image を使わないのは、public配下の静的画像で最適化済みのため */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={s.img}
-                alt={s.alt}
-                loading="lazy"
-                className="w-full rounded-xl bg-neutral-50"
-              />
             </li>
           ))}
         </ol>
