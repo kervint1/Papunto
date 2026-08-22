@@ -1,0 +1,48 @@
+name: Reservation reminders
+
+# 事前登録の枠は7日で失効する。画面には期限を出しているが、**ログインしない
+# 人には届かない**。登録して放置している人こそ知らせる相手なので、期限が
+# 近づいたらメールで送る。
+#
+# papunto にはジョブキューが無いので、papunto-sns と同じく GitHub Actions の
+# cron から HTTP で叩く。
+on:
+  schedule:
+    # 毎日 14:00 UTC = ペルー時間 09:00。
+    # ⚠️ GitHub Actions の cron は負荷状況で数十分ずれる。リマインドは
+    #    2日前から送るので、多少ずれても取りこぼさない
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send reminders
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${API_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "API_URL または CRON_SECRET が未設定です" >&2
+            exit 1
+          fi
+
+          # -w で末尾にHTTPステータスを付けて、本文と一緒に取る
+          response=$(curl -sS -w '\n%{http_code}' \
+            -X POST "$API_URL/cron/reservation-reminders" \
+            -H "X-Cron-Secret: $CRON_SECRET")
+
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+
+          echo "status: $status"
+          echo "body:   $body"
+
+          # 失敗を緑にしない。403ならシークレット、503なら未設定
+          if [ "$status" != "200" ]; then
+            echo "リマインドの実行に失敗しました" >&2
+            exit 1
+          fi

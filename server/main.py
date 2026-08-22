@@ -12,6 +12,7 @@ from routers import (
     auth,
     campaign,
     complaints,
+    cron,
     me,
     offers,
     phone,
@@ -68,6 +69,7 @@ app.include_router(posts.public_router)
 app.include_router(posts.admin_router)
 app.include_router(uploads.router)
 app.include_router(webhooks.router)
+app.include_router(cron.router)
 
 # Appwrite未設定のときは画像をローカルに置くので、その配信ルートを生やす。
 # 本番でここが有効になるのは設定漏れなので警告を出す

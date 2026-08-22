@@ -90,6 +90,11 @@ RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "")
 # 未設定でも送信は動く（解除ができなくなるだけ）
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 
+# 定時実行（GitHub Actions の cron）から /cron/* を叩くための共有シークレット。
+# ⚠️ 未設定だと定時実行は503で拒否される。「未設定なら認証スキップ」に
+#    しないのは、誰でも叩けるようになるため。openssl rand -hex 32 で生成
+CRON_SECRET = os.getenv("CRON_SECRET", "")
+
 # Reloadly: ポイント→携帯キャリア（Claro/Movistar/Entel/Bitel）チャージ交換
 RELOADLY_CLIENT_ID = os.getenv("RELOADLY_CLIENT_ID", "")
 RELOADLY_CLIENT_SECRET = os.getenv("RELOADLY_CLIENT_SECRET", "")

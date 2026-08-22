@@ -84,4 +84,7 @@ class User(SQLModel, table=True):
     #    ハッシュにはサーバー側の秘密（SECRET_KEY）を混ぜるので、
     #    DBだけ漏れても総当たりで番号は復元できない
     phone_hash: Optional[str] = Field(default=None, index=True)
+    # 枠の期限が近いことを知らせたメールを送った時刻。二重送信を防ぐ。
+    # ⚠️ 送信の成否で判断しない。送れなかったときに記録すると二度と送れない
+    reservation_reminder_sent_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
