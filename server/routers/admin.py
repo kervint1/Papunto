@@ -140,6 +140,11 @@ def stats(session: Session = Depends(get_session)):
             PostbackLog, PostbackLog.verified == False, PostbackLog.received_at >= week_ago  # noqa: E712
         ),
         posts_draft=count(Post, Post.status == "draft"),
+        email_blocked=count(
+            EmailEvent,
+            EmailEvent.event_type.in_(email_event_service.BLOCKING_EVENTS),
+            EmailEvent.cleared_at.is_(None),
+        ),
         # ⚠️ 契約前は true が正しい設定。false にすると存在しないAPIを叩きに行く。
         #    危険なのは「サービスを公開したのに true のまま」というズレなので、
         #    値そのものを見せて判断できるようにする

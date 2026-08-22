@@ -23,6 +23,8 @@ class AdminStats(BaseModel):
     complaints_pendientes: int
     postbacks_pending: int
     postback_logs_unverified_7d: int
+    # 未解除の不達。ここが0でないと、その人はマジックリンクで入れない
+    email_blocked: int = 0
     posts_draft: int = 0
 
     # 外部連携が「開発用の設定」のまま本番に出ていないかを、管理画面を開くたびに

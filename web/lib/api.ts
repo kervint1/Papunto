@@ -287,6 +287,7 @@ export interface AdminStats {
   complaints_pendientes: number;
   postbacks_pending: number;
   postback_logs_unverified_7d: number;
+  email_blocked: number;
   posts_draft: number;
   /** 契約前は true が正しい。公開時に false へ切り替える */
   cpalead_mock: boolean;
@@ -480,6 +481,30 @@ export function getAdminPostbacks(
 
 export function getAdminOffers(token: string): Promise<{ offers: Offer[] }> {
   return apiFetch<{ offers: Offer[] }>("/api/v1/admin/offers", token);
+}
+
+export interface AdminEmailEvent {
+  id: string;
+  email: string;
+  event_type: string;
+  bounce_type: string | null;
+  reason: string | null;
+  received_at: string;
+}
+
+export function getAdminEmailEvents(
+  token: string,
+  params: { blocking_only?: boolean; page?: number } = {}
+): Promise<{ events: AdminEmailEvent[]; page: PageMeta }> {
+  return apiFetch(`/api/v1/admin/email-events${qs(params)}`, token);
+}
+
+/** ⚠️ 消えるのはこちら側の記録だけ。Resendの抑制リストは別に残る */
+export function clearEmailBlock(token: string, email: string): Promise<{ cleared: number }> {
+  return apiFetch(`/api/v1/admin/email-events/clear`, token, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 export function getAdminPostbackLogs(
