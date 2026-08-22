@@ -118,13 +118,18 @@ export default function HomePage() {
 
   const points = me?.points ?? 0;
 
+  // 事前登録の期間中でも、管理者にはアプリ本体を見せる。
+  // 開放前に中身を確認・検証する手段が無いと、10/1に初めて本番の画面を
+  // 見ることになる
+  const preRegistro = campaign && !campaign.withdrawals_open && !me?.is_admin;
+
   /**
    * 交換が開くまではアプリを見せない。
    *
    * ⚠️ 中にタスクが1件も無い期間に空のアプリを見せると「登録したのに
    *    何もない」になる。事前登録は待機リストなので、確認ページとして扱う。
    */
-  if (campaign && !campaign.withdrawals_open && slot) {
+  if (preRegistro && slot) {
     return (
       <PreRegistroView
         token={token}
@@ -145,6 +150,16 @@ export default function HomePage() {
       <Header points={points} avatarUrl={me?.avatar_url} name={me?.name} email={me?.email} />
 
       <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+        {/* 管理者だけがここに来ている状態を明示する。無いと「一般ユーザーにも
+            アプリが見えている」と勘違いして、空のタスク一覧をバグとして扱う */}
+        {campaign && !campaign.withdrawals_open && me?.is_admin && (
+          <div className="mb-4 rounded-2xl bg-neutral-900 px-4 py-3 text-sm text-white">
+            管理者として表示中。一般ユーザーには
+            <strong className="font-semibold"> 事前登録の確認ページ </strong>
+            が出ています。
+          </div>
+        )}
+
         {/* Points / progress card */}
         <div className="rounded-3xl bg-yellow-400 p-6 sm:p-8">
           <p className="text-sm text-neutral-800">Tus puntos</p>
