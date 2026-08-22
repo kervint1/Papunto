@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Banknote, ListChecks, Target } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { CampaignBadge } from "@/components/CampaignBadge";
-import { Logo } from "@/components/Logo";
 import { InviteIntro } from "@/components/InviteIntro";
-import { captureRefFromUrl } from "@/lib/referral";
+import { Logo } from "@/components/Logo";
+import { Section } from "@/components/lp/Section";
 import { getCampaignStatus } from "@/lib/api";
+import { captureRefFromUrl } from "@/lib/referral";
 
 /**
  * LPに出す数字の既定値。
@@ -26,6 +26,8 @@ const FALLBACK = {
   opensAt: "2026-10-01",
   reservationDays: 7,
   referral: 200,
+  referralMax: 10,
+  referralEarnings: 500,
 };
 
 function soles(points: number) {
@@ -41,42 +43,11 @@ function longDate(iso: string) {
   });
 }
 
-/**
- * ⚠️ 将来の話ではなく、**登録した人に実際に起きること**を順番に書く。
- *    以前は「タスクを選ぶ→条件を満たす→Yapeで受け取る」だったが、
- *    タスクは10/1まで存在しないので、来た人には何も伝わらなかった。
- *
- * ⚠️ **「登録したら300pt」と書かない。** 付与は電話番号の登録時。
- *    「登録するだけでお金」はペルーで詐欺の典型句で、それを避けるために
- *    付与のタイミングを分けてある。文言が元に戻ると設計の意味が消える。
- */
-function steps(t: typeof FALLBACK) {
-  return [
-    {
-      icon: ListChecks,
-      title: "Crea tu cuenta",
-      desc: `Reservamos tu cupo por ${t.reservationDays} días`,
-    },
-    {
-      icon: Target,
-      title: "Registra tu número de Yape",
-      desc: `Te acreditamos ${t.initial} pts (S/ ${soles(t.initial)}) al instante`,
-    },
-    {
-      icon: Banknote,
-      title: `El ${longDate(t.opensAt)}`,
-      desc: `Abrimos las tareas. Con 1 tarea llegas a ${t.initial + t.bonus} pts y cobras`,
-    },
-  ];
-}
-
 export default function LandingPage() {
   const router = useRouter();
   const { status } = useSession();
-  const [terms, setTerms] = useState(FALLBACK);
+  const [t, setTerms] = useState(FALLBACK);
 
-  // 報酬額・開放日・枠の期限を実値で出す。取得に失敗したら既定値のまま描く
-  // （LP自体が落ちる方が実害が大きい）
   useEffect(() => {
     getCampaignStatus()
       .then((s) =>
@@ -86,12 +57,13 @@ export default function LandingPage() {
           opensAt: s.withdrawals_open_at ?? FALLBACK.opensAt,
           reservationDays: s.reservation_days ?? FALLBACK.reservationDays,
           referral: s.referral_reward_points ?? FALLBACK.referral,
+          referralMax: s.referral_max_per_user ?? FALLBACK.referralMax,
+          referralEarnings:
+            s.referral_required_earnings ?? FALLBACK.referralEarnings,
         })
       )
       .catch(() => {});
   }, []);
-
-  const total = terms.initial + terms.bonus;
 
   // 招待リンク（?ref=）で来た場合にコードを保存する。ログインの往復を挟むので、
   // 適用はログイン後に ReferralClaimer が行う
@@ -99,134 +71,236 @@ export default function LandingPage() {
     captureRefFromUrl();
   }, []);
 
-  // ログイン済みならLPを見せずにHomeへ送る。
-  // ルートに戻るたびログインを求められるように見えるのを防ぐ
+  // ログイン済みならLPを見せずにHomeへ送る
   useEffect(() => {
     if (status === "authenticated") router.replace("/tareas");
   }, [status, router]);
 
-  const goLogin = () => router.push(status === "authenticated" ? "/tareas" : "/ingresar");
+  const goLogin = () => router.push("/ingresar");
+  const total = t.initial + t.bonus;
+  const fecha = longDate(t.opensAt);
+
+  /**
+   * ⚠️ **「登録したら300pt」と書かない。** 付与は電話番号の登録時。
+   *    「登録するだけでお金」はペルーで詐欺の典型句で、それを避けるために
+   *    付与のタイミングを分けてある。番号は不正対策の土台でもある
+   *    （1番号1アカウント）。文言が戻ると設計の意味が消える。
+   */
+  const STEPS = [
+    {
+      when: "Hoy",
+      title: "Crea tu cuenta",
+      desc: `Reservamos tu cupo entre los primeros 100. Lo guardamos ${t.reservationDays} días.`,
+    },
+    {
+      when: "Hoy",
+      title: "Registra tu número de Yape",
+      desc: `Te acreditamos ${t.initial} puntos (S/ ${soles(t.initial)}) al instante. Es el número donde vas a cobrar.`,
+    },
+    {
+      when: fecha,
+      title: "Abrimos las tareas",
+      desc: `Completa 1 tarea y recibes ${t.bonus} puntos más. Desde ${total} puntos (S/ ${soles(total)}) pides tu dinero por Yape.`,
+    },
+  ];
+
+  const FAQ = [
+    {
+      q: "¿De verdad pagan?",
+      a: `Sí. Pagamos por Yape desde ${total} puntos (S/ ${soles(total)}). El canje se abre el ${fecha} y te avisamos por correo.`,
+    },
+    {
+      // ⚠️ デザイン案は「登録時には要らない」と書いていたが逆。番号の登録が
+      //    300ptの条件そのもの。ここを曖昧にすると実装と食い違う
+      q: "¿Por qué me piden mi número de celular?",
+      a: `Porque el pago llega por Yape y ese número es tu cuenta de cobro. También sirve para que una persona no cree varias cuentas: un número, una cuenta. Al registrarlo recibes los ${t.initial} puntos.`,
+    },
+    {
+      // 集客はFacebookグループ。そこから来た人はアプリ内ブラウザで
+      // Googleログインが動かない（403 disallowed_useragent）
+      q: "¿Necesito una cuenta de Google?",
+      a: "No. Puedes entrar con tu correo, con Google o con Facebook. Si abriste este enlace dentro de la app de Facebook, entra con tu correo.",
+    },
+    {
+      q: "¿Cuánto puedo ganar?",
+      a: `En el pre-registro, ${total} puntos (S/ ${soles(total)}). Después depende de las tareas que completes.`,
+    },
+    {
+      q: "¿Me van a cobrar algo?",
+      a: "Nunca. No te pedimos dinero, ni tarjeta, ni datos de tu banco.",
+    },
+  ];
 
   return (
-    <div
-      className="min-h-screen w-full cursor-pointer select-none bg-white"
-      onClick={goLogin}
-      role="button"
-      aria-label="Ir a iniciar sesión"
-    >
-      {/* Hero */}
-      <div className="bg-yellow-400">
-        <div className="mx-auto w-full max-w-5xl px-6 pb-12 pt-6 sm:px-8">
+    <div className="min-h-screen w-full bg-white text-neutral-900">
+      <header className="sticky top-0 z-20 border-b border-black/10 bg-white">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 sm:px-8">
           <Logo />
-          {/* 1カラム。埋めるためだけの図版を置かない */}
-          <div className="mt-10 max-w-2xl">
-            {/* 事前登録の残り枠。希少性が登録の動機になるので最初に見せる。
-              取得に失敗したら何も出ない（LP自体は成立する） */}
-            <CampaignBadge />
-            <p className="mt-2 inline-block rounded-full bg-white/40 px-3 py-1 text-sm text-neutral-800">
-              🇵🇪 Solo en Perú
-            </p>
-            {/* 希少性を先に、金額を後に。金額だけを一番上に置くと、
-                「登録するだけでお金」という詐欺の常套句と同じ形になる */}
-            <h1
-              className="mt-4 text-neutral-900"
-              style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", lineHeight: 1.25 }}
+          <nav className="flex items-center gap-5 text-sm">
+            <a href="#pasos" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">
+              Cómo funciona
+            </a>
+            <a href="#faq" className="hidden text-neutral-600 hover:text-neutral-900 sm:inline">
+              Preguntas
+            </a>
+            <button
+              type="button"
+              onClick={goLogin}
+              className="border-b border-neutral-900 pb-0.5 text-neutral-900"
             >
-              Sé uno de los primeros 100
-              <br />
-              en <span className="text-white">Perú</span>
-            </h1>
-            {/* ⚠️ 「登録するだけでS/5」に読めないよう、2段に分かれていることを
-                ここで言い切る。金額だけ先に出すと詐欺の常套句と同じ形になる */}
-            <p className="mt-3 max-w-xl text-neutral-800">
-              Te reservamos <strong>S/ {soles(total)}</strong> en puntos:{" "}
-              <strong>
-                {terms.initial} al registrar tu número de Yape
-              </strong>{" "}
-              y {terms.bonus} más al completar tu primera tarea. Los cobras por
-              Yape desde el {longDate(terms.opensAt)}.
-            </p>
-            {/* 枠に期限があることは登録の**前**に伝える。規約にしか書いて
-                いないと「知らないうちに枠が消えた」になる */}
-            <p className="mt-2 max-w-xl text-sm text-neutral-800">
-              Tu cupo se guarda <strong>{terms.reservationDays} días</strong>.
-              Si no registras tu número en ese plazo, pasa a otra persona.
-            </p>
-            {/* ⚠️ ペルーで「登録するだけでお金」は詐欺の典型。仕組みを
-                説明しないと、まともな人ほど登録しない */}
-            <p className="mt-3 max-w-xl rounded-2xl bg-white/50 px-4 py-3 text-sm text-neutral-800">
-              <strong>¿Por qué te damos puntos?</strong> Ganamos dinero cuando
-              los anunciantes pagan por nuevos usuarios. Te adelantamos parte
-              de eso para que pruebes la plataforma. No te pedimos dinero, ni
-              tarjeta, ni datos de tu banco. Nunca.
-            </p>
-
-            {/* 登録の前に招待コードを確かめられるようにする。
-                後から入れる形だと、入ったかどうか分からないまま登録させることになる */}
-            <InviteIntro />
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {/* 登録が主。以前はブログが主になっていたが、いま集めたいのは登録 */}
-              <Button
-                size="lg"
-                className="h-12 bg-neutral-900 px-8 text-white hover:bg-neutral-800"
-              >
-                Crear mi cuenta
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="h-12 border-neutral-900 bg-transparent px-8 text-neutral-900 hover:bg-white/40"
-              >
-                <a href="/blog" onClick={(e) => e.stopPropagation()}>
-                  Leer las guías
-                </a>
-              </Button>
-            </div>
-            <p className="mt-3 text-sm text-neutral-800">
-              Sin pagar nada. Sin tarjeta. Solo tu correo o tu cuenta de Google.
-            </p>
-          </div>
+              Crear mi cuenta
+            </button>
+          </nav>
         </div>
-      </div>
+      </header>
 
-      {/* 3 steps */}
-      <div className="mx-auto w-full max-w-5xl px-6 py-12 sm:px-8">
-        <h2 className="text-center">Cómo funciona</h2>
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {steps(terms).map((s, i) => (
-            <div
-              key={s.title}
-              className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:flex-col sm:items-start sm:p-6"
+      {/* Hero */}
+      <section className="bg-[#FFC800]">
+        <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:px-8 sm:py-24">
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-neutral-800/70">
+            Pre-registro · Perú
+          </p>
+          <h1
+            className="mt-6 max-w-4xl"
+            style={{
+              fontSize: "clamp(2.25rem, 6vw, 4.25rem)",
+              letterSpacing: "-0.04em",
+              lineHeight: 1.05,
+            }}
+          >
+            Sé uno de los primeros 100 en Perú
+          </h1>
+
+          {/* ⚠️ 「登録するだけでS/5」に読めないよう、2段に分かれていることを
+              ここで言い切る。金額だけ先に出すと詐欺の常套句と同じ形になる */}
+          <p className="mt-7 max-w-2xl text-lg leading-relaxed sm:text-xl">
+            Te reservamos <strong>S/ {soles(total)}</strong> en puntos:{" "}
+            <strong>{t.initial} al registrar tu número de Yape</strong> y{" "}
+            {t.bonus} más al completar tu primera tarea.
+          </p>
+          <p className="mt-3 max-w-2xl text-neutral-800">
+            Sin pagar nada. Sin tarjeta. Entra con tu correo, Google o Facebook.
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center gap-6">
+            <button
+              type="button"
+              onClick={goLogin}
+              className="inline-flex items-center gap-3 bg-neutral-900 px-8 py-4 text-white transition-colors hover:bg-neutral-800"
             >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-yellow-600">
-                <s.icon className="h-6 w-6" />
-              </div>
+              Crear mi cuenta
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <a href="#registro" className="text-sm underline underline-offset-4">
+              ¿Tienes un código de invitación?
+            </a>
+          </div>
+
+          <div className="mt-10">
+            <CampaignBadge />
+          </div>
+          {/* 枠に期限があることは登録の**前**に伝える。規約にしか書いて
+              いないと「知らないうちに枠が消えた」になる */}
+          <p className="mt-3 font-mono text-xs tracking-wide text-neutral-800/70">
+            Tu cupo se guarda {t.reservationDays} días
+          </p>
+        </div>
+      </section>
+
+      {/* ⚠️ ペルーで「登録するだけでお金」は詐欺の典型。仕組みを説明しないと、
+          まともな人ほど登録しない */}
+      <Section kicker="Rewards" title="¿Por qué te damos puntos gratis?">
+        <p className="mt-7 text-lg leading-relaxed text-neutral-700">
+          Papunto gana dinero cuando los anunciantes pagan por nuevos usuarios.
+          Te adelantamos parte de eso para que pruebes la plataforma cuando
+          abramos las tareas.
+        </p>
+        <p className="mt-6 text-xl leading-snug text-neutral-900">
+          No te pedimos dinero, ni tarjeta, ni datos de tu banco. Nunca.
+        </p>
+      </Section>
+
+      <Section id="pasos" kicker="How it works" title="Cómo funciona">
+        <p className="mt-6 text-neutral-500">
+          Tres pasos, de hoy hasta el día que cobras.
+        </p>
+        <ol className="mt-10">
+          {STEPS.map((s, i) => (
+            <li
+              key={s.title}
+              className="grid gap-2 border-t border-black/10 py-7 sm:grid-cols-[64px_128px_1fr] sm:gap-6"
+            >
+              <span className="font-mono text-sm text-neutral-400">0{i + 1}</span>
+              <span className="font-mono text-sm text-neutral-500">{s.when}</span>
               <div>
-                <span className="text-sm text-yellow-500">PASO {i + 1}</span>
-                <div className="text-neutral-900">{s.title}</div>
-                <p className="text-sm text-neutral-500">{s.desc}</p>
+                <div className="text-lg text-neutral-900">{s.title}</div>
+                <p className="mt-1 text-neutral-600">{s.desc}</p>
               </div>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      {/* ⚠️ 「友達が登録したら」ではない。友達がタスクで稼いで初めて成立する。
+          登録で成立させると、メールを量産するだけで報酬が積み上がる */}
+      <Section kicker="Referral" title={`Invita y gana ${t.referral} puntos por amigo`}>
+        <p className="mt-7 text-lg leading-relaxed text-neutral-700">
+          Comparte tu código durante el pre-registro. Recibes{" "}
+          <strong className="text-neutral-900">
+            {t.referral} puntos (S/ {soles(t.referral)})
+          </strong>{" "}
+          cuando tu amigo haya ganado {t.referralEarnings} puntos completando
+          tareas. Crear la cuenta no es suficiente.
+        </p>
+        <p className="mt-4 text-sm text-neutral-500">
+          Hasta {t.referralMax} amigos premiados por cuenta.
+        </p>
+      </Section>
+
+      {/* 登録の前に招待コードを確かめられるようにする。後から入れる形だと、
+          入ったかどうか分からないまま登録させることになる */}
+      <Section id="registro" kicker="Code" title="¿Te invitó un amigo?" compact>
+        <div className="mt-6">
+          <InviteIntro />
+        </div>
+      </Section>
+
+      <Section id="faq" kicker="FAQ" title="Preguntas frecuentes">
+        <dl className="mt-10">
+          {FAQ.map((f) => (
+            <div key={f.q} className="border-t border-black/10 py-6">
+              <dt className="text-lg text-neutral-900">{f.q}</dt>
+              <dd className="mt-2 leading-relaxed text-neutral-600">{f.a}</dd>
             </div>
           ))}
-        </div>
+        </dl>
+      </Section>
 
-        <div className="mt-10 rounded-2xl bg-neutral-900 p-8 text-center text-white">
-          <p className="text-sm text-neutral-300">Invita y gana más</p>
-          <p style={{ fontSize: "1.5rem" }} className="mt-1">
-            {terms.referral} pts por cada amigo
+      <section className="mt-20 bg-[#FFC800] sm:mt-28">
+        <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:px-8 sm:py-20">
+          <h2
+            className="max-w-3xl"
+            style={{
+              fontSize: "clamp(1.75rem, 4vw, 3rem)",
+              letterSpacing: "-0.035em",
+              lineHeight: 1.1,
+            }}
+          >
+            Sé uno de los primeros 100 en Perú
+          </h2>
+          <p className="mt-4 text-neutral-800">
+            Sin pagar nada. Sin tarjeta. Entra con tu correo, Google o Facebook.
           </p>
-          <p className="mx-auto mt-3 max-w-md text-sm text-neutral-300">
-            Comparte tu código durante el pre-registro. Recibes los puntos
-            cuando tu amigo empiece a completar tareas.
-          </p>
-          <Button className="mx-auto mt-4 h-11 w-full max-w-sm bg-yellow-400 text-neutral-900 hover:bg-yellow-300">
-            Crear mi cuenta y obtener mi código
-          </Button>
+          <button
+            type="button"
+            onClick={goLogin}
+            className="mt-8 inline-flex items-center gap-3 bg-neutral-900 px-8 py-4 text-white transition-colors hover:bg-neutral-800"
+          >
+            Crear mi cuenta
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
