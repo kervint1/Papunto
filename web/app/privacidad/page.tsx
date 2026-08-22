@@ -88,13 +88,10 @@ export default function PrivacidadPage() {
             {/* ⚠️ 運営主体。**ペルーの個人データ保護法は管理責任主体の明示を求める**
                 （Ley 29733 / DS 016-2024-JUS は国外事業者にも域外適用される）。
                 法人登記の商号・本店所在地と一致させること */}
+            <p>Papunto</p>
             <p>
-              Papunto es un servicio operado por Habibi Auto Trading合同会社
-              (Habibi Auto Trading LLC).
-            </p>
-            <p>
-              Shibuya Dogenzaka Tokyu Building 2F-C, 1-10-8 Dogenzaka,
-              Shibuya-ku, Tokio 150-0043, Japón
+              Habibi Auto Trading合同会社 — Shibuya Dogenzaka Tokyu Building
+              2F-C, 1-10-8 Dogenzaka, Shibuya-ku, Tokio 150-0043, Japón
             </p>
             <p>Correo electrónico de contacto del Titular: soporte@papunto.pe</p>
           </Section>

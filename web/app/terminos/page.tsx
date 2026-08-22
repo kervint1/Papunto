@@ -35,12 +35,9 @@ export default function TerminosPage() {
       updated="22 de agosto de 2026"
       current="/terminos"
     >
-        {/* ⚠️ 契約の相手方なので、規約では運営主体を名指しする。
-            「el Titular（プライバシーポリシー参照）」だけだと、誰と契約して
-            いるのかが規約本文から読み取れない */}
         <p className="mt-3 text-sm leading-relaxed text-neutral-700">
-          Para utilizar Papunto (el &ldquo;Servicio&rdquo;), operado por
-          Habibi Auto Trading合同会社 (el &ldquo;Titular&rdquo;, ver{" "}
+          Para utilizar Papunto (el &ldquo;Servicio&rdquo;), operado por su
+          titular (el &ldquo;Titular&rdquo;, ver{" "}
           <Link href="/privacidad" className="underline">
             Política de Privacidad
           </Link>
