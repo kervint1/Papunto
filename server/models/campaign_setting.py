@@ -29,6 +29,16 @@ DEFAULT_REFERRAL_MAX_PER_USER = 10
 # 済んでしまうため（案件は45ptから900ptまで幅がある）。
 # 既定の500ptは「友達が自力で交換できる所まで来たら報酬」という意味。
 DEFAULT_REFERRAL_REQUIRED_EARNINGS = 500
+# 枠を押さえてから電話番号を登録するまでの猶予（日）。
+#
+# 登録はメールアドレスだけででき、その瞬間に枠を消費する。期限が無いと
+# **フリーメールで手動登録するだけで100枠を埋められる**。金銭的な損は
+# 出ない（番号が無ければ1ptも出ない）が、キャンペーンの目的である
+# 「実ユーザーを100人集める」が達成できなくなる。
+#
+# ⚠️ 規約（/campana）の「Causales de exclusión」は閉じた列挙なので、
+#    後から期限を課すことはできない。**先に告知してある**ことが前提。
+DEFAULT_RESERVATION_DAYS = 7
 
 
 class CampaignSetting(SQLModel, table=True):
@@ -57,6 +67,8 @@ class CampaignSetting(SQLModel, table=True):
     referral_reward_points: int = Field(default=DEFAULT_REFERRAL_REWARD_POINTS)
     referral_max_per_user: int = Field(default=DEFAULT_REFERRAL_MAX_PER_USER)
     referral_required_earnings: int = Field(default=DEFAULT_REFERRAL_REQUIRED_EARNINGS)
+    # 0にすると全員が即座に期限切れになる。下限は運用側で守る
+    reservation_days: int = Field(default=DEFAULT_RESERVATION_DAYS)
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # 誰が最後に変えたか。金の出入りに効く設定なので追えるようにする

@@ -29,6 +29,7 @@ ASPに見せる成果の実績にもなる。
 import datetime as dt
 import logging
 from dataclasses import dataclass
+from typing import Optional
 
 from sqlmodel import Session, func, select
 
@@ -68,17 +69,27 @@ def position_of(session: Session, user: User) -> int:
        数えると、最初の実ユーザーが「#3 de 100」と表示される。
        1人しか登録していないのに3番目では、希少性の話が成立しない
     """
+    # 期限切れ・退会・除外は枠を返しているので、番号も詰める
+    days = get_settings(session).reservation_days
     earlier = session.exec(
         select(func.count())
         .select_from(User)
-        .where(
-            User.id < user.id,
-            User.campaign_excluded == False,  # noqa: E712
-            # 退会した人は枠を返しているので、番号も詰める
-            User.deleted_at.is_(None),
-        )
+        .where(User.id < user.id, _alive_reservation(days))
     ).one()
     return int(earlier) + 1
+
+
+def has_live_reservation(session: Session, user: User) -> bool:
+    """いま有効な枠を持っているか。
+
+    受け取り済みなら確定。まだなら期限内かどうかで決まる。
+    """
+    if user.campaign_reserved_at is None or user.campaign_excluded:
+        return False
+    if user.campaign_reward_granted_at is not None:
+        return True
+    deadline = reservation_deadline(session, user)
+    return deadline is None or dt.datetime.now(dt.timezone.utc) <= deadline
 
 
 def slot_of(session: Session, user: User) -> Slot:
@@ -87,7 +98,10 @@ def slot_of(session: Session, user: User) -> Slot:
     return Slot(
         position=position,
         limit=limit,
-        within_limit=position <= limit,
+        # ⚠️ 番号が枠内でも、**自分が枠を持っていなければ枠外**。
+        #    position は「生きている枠の中で何番目か」しか表さないので、
+        #    確保していない人・期限切れの人は必ず1番になってしまう
+        within_limit=has_live_reservation(session, user) and position <= limit,
         remaining=remaining_slots(session),
     )
 
@@ -102,21 +116,56 @@ def remaining_slots(session: Session) -> int:
     return max(0, get_settings(session).slot_limit - reserved_count(session))
 
 
+def reservation_deadline(session: Session, user: User) -> Optional[dt.datetime]:
+    """この人の枠がいつまで有効か。確保していなければ None。
+
+    受け取り済みなら期限は無い（枠は確定）。
+    """
+    if user.campaign_reserved_at is None:
+        return None
+    if user.campaign_reward_granted_at is not None:
+        return None
+    days = get_settings(session).reservation_days
+    reserved_at = user.campaign_reserved_at
+    if reserved_at.tzinfo is None:
+        reserved_at = reserved_at.replace(tzinfo=dt.timezone.utc)
+    return reserved_at + dt.timedelta(days=days)
+
+
+def _alive_reservation(days: int):
+    """まだ生きている枠の条件。
+
+    登録はメールアドレスだけででき、その瞬間に枠を消費する。期限が無いと
+    **フリーメールで手動登録するだけで100枠を埋められる**。番号が無ければ
+    1ptも出ないので金銭的な損は無いが、キャンペーンの目的である
+    「実ユーザーを100人集める」が達成できなくなる。
+
+    受け取り済み（＝電話番号を登録した）人は期限に関係なく枠を保持する。
+    """
+    limite = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
+    return (
+        User.campaign_reserved_at.is_not(None)
+        & (User.campaign_excluded == False)  # noqa: E712
+        & User.deleted_at.is_(None)
+        & (
+            User.campaign_reward_granted_at.is_not(None)
+            | (User.campaign_reserved_at >= limite)
+        )
+    )
+
+
 def reserved_count(session: Session) -> int:
     """枠を確保した人数。**枠の判定はこの数で行う**。
 
     付与済み数では数えない。付与は電話番号の登録時なので、そちらで数えると
-    「登録は100人いるのに残り枠は100のまま」になり、希少性の表示が壊れる
+    「登録は100人いるのに残り枠は100のまま」になり、希少性の表示が壊れる。
+
+    期限切れの確保は数えない（枠が次の人に回る）。
     """
+    days = get_settings(session).reservation_days
     return int(
         session.exec(
-            select(func.count())
-            .select_from(User)
-            .where(
-                User.campaign_reserved_at.is_not(None),
-                User.campaign_excluded == False,  # noqa: E712
-                User.deleted_at.is_(None),
-            )
+            select(func.count()).select_from(User).where(_alive_reservation(days))
         ).one()
     )
 
@@ -177,6 +226,12 @@ def grant_reward(session: Session, user: User) -> bool:
     if user.campaign_reserved_at is None:
         return False
     if user.campaign_excluded:
+        return False
+    # 枠の期限切れ。ここを見ないと、放置して期限が切れた人が後から番号を
+    # 入れるだけで受け取れてしまい、枠を返した意味が無くなる
+    deadline = reservation_deadline(session, user)
+    if deadline is not None and dt.datetime.now(dt.timezone.utc) > deadline:
+        logger.info("枠の期限切れなので付与しない: user=%s", user.id)
         return False
     # 退会して再登録した人に、同じ番号でもう一度渡さない。
     # ⚠️ 番号はここでしか手に入らない（退会時に消えるので、後からは辿れない）

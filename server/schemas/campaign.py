@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -16,6 +17,8 @@ class CampaignStatus(BaseModel):
     referral_reward_points: int
     referral_max_per_user: int
     referral_required_earnings: int
+    # 枠の有効期限（日）。規約ページが日数を出すのに使う
+    reservation_days: int
     withdrawals_open_at: Optional[str] = None  # ISO日付。未設定なら即開放
     withdrawals_open: bool
 
@@ -40,3 +43,6 @@ class CampaignSlot(BaseModel):
     bonus_points: int
     tasks_completed: int
     bonus_required_tasks: int
+    # 枠の期限。番号を登録するまでの猶予。受け取り済みなら None。
+    # ⚠️ 画面に出すこと。黙って枠を消すのは、告知していても不親切
+    reservation_deadline: Optional[datetime] = None

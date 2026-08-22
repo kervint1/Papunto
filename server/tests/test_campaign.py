@@ -23,10 +23,20 @@ def auth(u: User) -> dict:
 
 
 def make_users(session: Session, n: int) -> list[User]:
+    """枠を確保した状態で作る。
+
+    ⚠️ reserve_slot を通すこと。素の User を作るだけだと枠を持たないので、
+       within_limit は常に False になる（枠を持たない人は枠外）。
+       本物の登録は必ず reserve_slot を通る
+    """
+    from services import campaign_service
+
     created = []
     for i in range(n):
         u = User(provider_user_id=f"g-c{i}", email=f"c{i}@example.com", name=f"U{i}")
         session.add(u)
+        session.flush()
+        campaign_service.reserve_slot(session, u)
         created.append(u)
     session.commit()
     for u in created:

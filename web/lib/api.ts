@@ -218,6 +218,8 @@ export interface CampaignStatus {
   referral_reward_points: number;
   referral_max_per_user: number;
   referral_required_earnings: number;
+  /** 枠の有効期限（日）。番号を登録するまでの猶予 */
+  reservation_days: number;
   /** ISO日付。nullなら即座に交換できる */
   withdrawals_open_at: string | null;
   withdrawals_open: boolean;
@@ -243,6 +245,8 @@ export interface CampaignSlot {
   bonus_points: number;
   tasks_completed: number;
   bonus_required_tasks: number;
+  /** 枠の期限。ISO日時。受け取り済みなら null */
+  reservation_deadline: string | null;
 }
 
 export function getCampaignSlot(token: string): Promise<CampaignSlot> {

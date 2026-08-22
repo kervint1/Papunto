@@ -21,6 +21,7 @@ const FALLBACK = {
   referral: 200,
   referralMax: 10,
   referralEarnings: 500,
+  reservationDays: 7,
 };
 
 async function loadTerms() {
@@ -40,6 +41,7 @@ async function loadTerms() {
       referralMax: d.referral_max_per_user ?? FALLBACK.referralMax,
       referralEarnings:
         d.referral_required_earnings ?? FALLBACK.referralEarnings,
+      reservationDays: d.reservation_days ?? FALLBACK.reservationDays,
     };
   } catch {
     return FALLBACK;
@@ -88,7 +90,7 @@ export default async function CampanaPage() {
   return (
     <LegalLayout
       title="Bases de la campaña de pre-registro"
-      updated="18 de agosto de 2026"
+      updated="22 de agosto de 2026"
       current="/campana"
     >
       <p>
@@ -120,6 +122,26 @@ export default async function CampanaPage() {
         Crear la cuenta reserva tu cupo. La entrega de los puntos ocurre
         después, según se indica más abajo.
       </p>
+
+      {/* ⚠️ 枠の有効期限。**必ず先に告知してある状態を保つこと。**
+          除外条件（下）は「únicamente」で閉じた列挙なので、後から期限を
+          課すことはできない。登録はメールアドレスだけででき、その瞬間に
+          枠を消費するため、期限が無いとフリーメールの手動登録だけで
+          100枠を埋められる。実装は campaign_settings.reservation_days */}
+      <p className="mt-3">
+        <strong className="font-semibold text-neutral-900">
+          El cupo se reserva por {t.reservationDays} días.
+        </strong>{" "}
+        Dentro de ese plazo debes registrar el número de celular con el que
+        vas a cobrar. Si no lo haces, el cupo queda libre y pasa al siguiente
+        participante en orden de registro. Puedes ver la fecha límite en tu
+        cuenta.
+      </p>
+      <p className="mt-3">
+        Una vez que registras tu número y recibes los primeros{" "}
+        {t.initial} puntos, el cupo queda confirmado y ya no vence.
+      </p>
+
       <p className="mt-3">
         Puedes ver los cupos restantes en tu cuenta y en la página principal.
       </p>

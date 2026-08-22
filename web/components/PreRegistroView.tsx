@@ -20,7 +20,9 @@ import { getPhone, type CampaignSlot, type CampaignStatus, type ReferralMe } fro
  * 3. 電話番号を先に登録する（＝300ptを受け取る）
  */
 function fmtDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
+  // "2026-10-01" と "2026-08-29T10:15:00+00:00" の両方が来る。
+  // 後者をそのまま split("-") すると日の部分が "29T10:15:00+00:00" になり NaN
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-PE", {
     day: "numeric",
     month: "long",
@@ -132,6 +134,20 @@ export function PreRegistroView({
                   Registra el número de Yape donde recibirás tu dinero y te
                   acreditamos los puntos al instante.
                 </p>
+
+                {/* ⚠️ 期限を必ず出す。規約（/campana）に書いてあっても、
+                    画面に出さずに枠を消すのは不親切。ここが唯一
+                    「いつまでに何をすればいいか」が伝わる場所 */}
+                {slot.reservation_deadline && (
+                  <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Tu cupo está reservado hasta el{" "}
+                    <strong className="font-semibold">
+                      {fmtDate(slot.reservation_deadline)}
+                    </strong>
+                    . Si no registras tu número antes, el cupo pasa a otra
+                    persona.
+                  </p>
+                )}
                 <div className="mt-4">
                   <PhoneGate token={token} onRegistered={setPhone} />
                 </div>

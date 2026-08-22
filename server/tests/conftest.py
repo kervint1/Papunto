@@ -101,8 +101,18 @@ def set_campaign(session: Session, **fields):
 
 @pytest.fixture(name="user")
 def user_fixture(session: Session):
+    """通常の登録者。
+
+    ⚠️ **枠を確保した状態にする。** 本物の登録は resolve_user → reserve_slot を
+       必ず通るので、素の User だけ作ると実態とずれる。枠を持たない人は
+       within_limit が False になり、テストが現実と食い違う
+    """
+    from services import campaign_service
+
     user = User(provider_user_id="google-test-1", email="test@example.com", name="Test", points=0)
     session.add(user)
+    session.flush()
+    campaign_service.reserve_slot(session, user)
     session.commit()
     session.refresh(user)
     return user
