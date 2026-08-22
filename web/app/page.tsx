@@ -195,7 +195,7 @@ export default function LandingPage() {
       <section className="bg-[#FFC800]">
         <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:px-8 sm:py-24">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-neutral-800/70">
-            Pre-registro · Perú
+            Pre-registro
           </p>
           <h1
             className="mt-6 max-w-4xl"
@@ -205,7 +205,7 @@ export default function LandingPage() {
               lineHeight: 1.05,
             }}
           >
-            Sé uno de los primeros 100 en Perú
+            Sé uno de los primeros 100
           </h1>
 
           {/* ⚠️ 「登録するだけでS/5」に読めないよう、2段に分かれていることを
@@ -387,7 +387,7 @@ export default function LandingPage() {
               lineHeight: 1.1,
             }}
           >
-            Sé uno de los primeros 100 en Perú
+            Sé uno de los primeros 100
           </h2>
           <p className="mt-4 text-neutral-800">
             Sin pagar nada. Sin tarjeta. Entra con tu correo, Google o Facebook.

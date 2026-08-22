@@ -226,7 +226,7 @@ export default function HomePage() {
                   Todavía no hay tareas disponibles.
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-sm text-neutral-400">
-                  Estamos preparando el catálogo para Perú. Te avisaremos por
+                  Estamos preparando el catálogo de tareas. Te avisaremos por
                   correo cuando estén listas.
                 </p>
               </div>

@@ -60,7 +60,7 @@ export default function OpengraphImage() {
         </div>
 
         <div style={{ display: "flex", marginTop: 32, fontSize: 30, color: "#3f3f46" }}>
-          🇵🇪 Solo en Perú · Empieza gratis
+          Pre-registro abierto · Empieza gratis
         </div>
       </div>
     ),

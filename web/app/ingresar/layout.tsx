@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Iniciar sesión",
-  description: "Entra con tu cuenta de Google y empieza a ganar puntos en Papunto. Gratis y solo para Perú.",
+  description: "Entra con tu correo, Google o Facebook y empieza a ganar puntos en Papunto. Gratis y sin tarjeta.",
   alternates: { canonical: "/ingresar" },
 };
 
