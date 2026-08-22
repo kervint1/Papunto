@@ -14,10 +14,20 @@ import { Button } from "@/components/ui/button";
  *    グループのリンクから来た人はGoogleログインを押せない。
  *    目立たない場所に隠さないこと。
  */
-const MESSAGES: Record<string, string> = {
-  TOO_MANY_REQUESTS: "Espera unos minutos antes de pedir otro enlace.",
-  MAIL_FAILED: "No pudimos enviar el correo. Inténtalo de nuevo.",
-  MAIL_UNAVAILABLE: "El inicio con correo no está disponible ahora.",
+/**
+ * ⚠️ 「数分待って」だけでは役に立たない。連打しているのは**届かないから**で、
+ *    待っても状況は変わらない。10分のあいだに実際にできること
+ *    （迷惑メールを見る・打ち間違いに気づく・前のリンクを使う）を書く。
+ *
+ * ⚠️ 「Googleで入って」とは書けない。その案内が必要な人ほど
+ *    Facebookのアプリ内ブラウザにいて、Googleが使えない。
+ */
+const MESSAGES: Record<string, (email: string) => string> = {
+  TOO_MANY_REQUESTS: (email) =>
+    `Ya te enviamos el enlace a ${email} y sigue funcionando. ` +
+    `Revisa tu correo y la carpeta de spam.`,
+  MAIL_FAILED: () => "No pudimos enviar el correo. Inténtalo de nuevo.",
+  MAIL_UNAVAILABLE: () => "El inicio con correo no está disponible ahora.",
 };
 
 export function MagicLinkForm() {
@@ -35,7 +45,9 @@ export function MagicLinkForm() {
       setSent(true);
     } catch (e) {
       setError(
-        e instanceof ApiError ? MESSAGES[e.code] ?? e.message : "Error de conexión"
+        e instanceof ApiError
+          ? MESSAGES[e.code]?.(email.trim()) ?? e.message
+          : "Error de conexión"
       );
     } finally {
       setBusy(false);
