@@ -13,11 +13,12 @@ import logging
 from fastapi import APIRouter, Depends
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 import config
 from database import get_session
 from errors import ApiError
+from models import User
 from schemas.auth import FacebookLoginRequest, LoginRequest, TokenResponse
 from schemas.magic_link import MagicLinkRequest, MagicLinkRequestResult, MagicLinkVerify
 from services import (
@@ -34,6 +35,19 @@ from services.auth_service import AuthService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+def _saludo(session: Session, email: str) -> str:
+    """マジックリンクの宛名。
+
+    初回登録の人は名前を持っていないので空になる。既存ユーザーには名前で
+    呼びかける。**ログインのメールが一番フィッシングに見える**ので、
+    宛名があるかどうかで信用が変わる。
+
+    ⚠️ アカウントの有無は漏れない。本文はそのアドレスにしか届かない
+    """
+    user = session.exec(select(User).where(User.email == email)).first()
+    return f"Hola {user.name},\n\n" if user and user.name else ""
 
 
 def _issue_token(session: Session, user) -> TokenResponse:
@@ -126,7 +140,8 @@ def request_magic_link(body: MagicLinkRequest, session: Session = Depends(get_se
                 to=email,
                 subject="Tu enlace para entrar a Papunto",
                 body=(
-                    "Toca el enlace para entrar a tu cuenta:\n\n"
+                    _saludo(session, email)
+                    + "Toca el enlace para entrar a tu cuenta:\n\n"
                     f"{url}\n\n"
                     "El enlace vence en 15 minutos y solo se puede usar una vez.\n"
                     "Si no lo pediste, ignora este correo."

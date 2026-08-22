@@ -16,6 +16,23 @@ class MailError(RuntimeError):
     pass
 
 
+# 全メールの末尾に付ける署名。
+#
+# ⚠️ 差出人と問い合わせ先が無いメールは詐欺と見分けがつかない。papunto は
+#    「これ詐欺じゃないか」と疑われる段階にあり、事前登録の人が受け取る
+#    ものはメールしかない。ここを空にしない。
+#
+# 法人名は入れない。対外的な名乗りは Papunto で通し、運営主体の明示は
+# プライバシーポリシー側で行う（/privacidad の Titular）。
+SIGNATURE = (
+    "\n\n"
+    "--\n"
+    "Papunto\n"
+    "¿Necesitas ayuda? Escríbenos a soporte@papunto.pe\n"
+    "https://www.papunto.pe\n"
+)
+
+
 def configured() -> bool:
     return bool(config.SMTP_HOST and config.SMTP_USER and config.SMTP_PASSWORD)
 
@@ -36,7 +53,8 @@ def send(*, to: str, subject: str, body: str) -> None:
     message["From"] = config.MAIL_FROM or config.SMTP_USER
     message["To"] = to
     message["Subject"] = subject
-    message.set_content(body)
+    # 署名はここで付ける。本文ごとに書くと必ず付け忘れる
+    message.set_content(body.rstrip() + SIGNATURE)
 
     try:
         with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=20) as smtp:
