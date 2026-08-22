@@ -113,17 +113,22 @@ export function PreRegistroView({
                 <p className="mt-1 font-mono text-lg tracking-wider text-neutral-900">
                   {phone}
                 </p>
-                <p className="mt-2 text-sm text-neutral-600">
-                  Tu saldo es{" "}
-                  <strong className="text-neutral-900">
-                    {points.toLocaleString("es-PE")} pts
-                  </strong>
-                  . Podrás canjearlo desde el{" "}
-                  <strong className="text-neutral-900">
-                    {opensAt ? fmtDate(opensAt) : "lanzamiento"}
-                  </strong>
-                  .
-                </p>
+                {/* ⚠️ 残高0のときは出さない。ここに来て0なのは報酬が
+                    付与されなかった場合（枠外・除外・期限切れ・同じ番号での
+                    再登録）で、「0ptを10/1に交換できます」は意味が通らない */}
+                {points > 0 && (
+                  <p className="mt-2 text-sm text-neutral-600">
+                    Tu saldo es{" "}
+                    <strong className="text-neutral-900">
+                      {points.toLocaleString("es-PE")} pts
+                    </strong>
+                    . Podrás canjearlo desde el{" "}
+                    <strong className="text-neutral-900">
+                      {opensAt ? fmtDate(opensAt) : "lanzamiento"}
+                    </strong>
+                    .
+                  </p>
+                )}
               </>
             ) : (
               <>
