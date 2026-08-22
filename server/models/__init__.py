@@ -1,6 +1,7 @@
 from models.admin_log import AdminLog
 from models.campaign_setting import CampaignSetting
 from models.complaint import Complaint
+from models.email_event import EmailEvent
 from models.magic_link import MagicLinkToken
 from models.point_transaction import PointTransaction
 from models.post import Post
@@ -24,4 +25,5 @@ __all__ = [
     "Referral",
     "PointTransaction",
     "MagicLinkToken",
+    "EmailEvent",
 ]

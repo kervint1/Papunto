@@ -21,6 +21,7 @@ from errors import ApiError
 from schemas.auth import FacebookLoginRequest, LoginRequest, TokenResponse
 from schemas.magic_link import MagicLinkRequest, MagicLinkRequestResult, MagicLinkVerify
 from services import (
+    email_event_service,
     facebook_service,
     identity_service,
     magic_link_service,
@@ -82,6 +83,19 @@ def request_magic_link(body: MagicLinkRequest, session: Session = Depends(get_se
        ユーザーが待ち続けることになる。
     """
     email = str(body.email).strip().lower()
+
+    # 過去にハードバウンス／迷惑メール報告があったアドレスには送らない。
+    #
+    # 送っても提供元の抑制リストで止まるため**絶対に届かない**のに、こちらは
+    # 「送った」と返すことになる。届かない相手に送り続けると送信ドメインの
+    # 評判も落ちる。ここで別の入口（Google）へ誘導したほうが早い。
+    if email_event_service.is_blocked(session, email):
+        raise ApiError(
+            422,
+            "MAIL_BLOCKED",
+            "No podemos entregar correos a esta dirección. "
+            "Entra con Google o escríbenos para ayudarte.",
+        )
 
     try:
         raw = magic_link_service.issue(session, email)

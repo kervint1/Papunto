@@ -66,7 +66,9 @@ META_API_VERSION = os.getenv("META_API_VERSION", "v23.0")
 META_GRAPH_BASE = f"https://graph.facebook.com/{META_API_VERSION}"
 
 # --- メール送信（マジックリンクのログイン） ---
-# Gmailは通常のパスワードでは送れない。アプリパスワードを使う
+# 提供元はResend（smtp.resend.com / ユーザー名は固定文字列 "resend"）。
+# ホストとユーザー名を定数にしていないのは、無料枠（100通/日）を超えたときに
+# BrevoやSESへ**環境変数だけで**切り替えられるようにするため
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
@@ -76,6 +78,12 @@ MAIL_FROM = os.getenv("MAIL_FROM", "")
 # ⚠️ 開発用。true にすると**メールを送らずログにリンクを出す**。
 #    本番で有効にするとログを見られる人が誰でもログインできる
 MAGIC_LINK_DEV_ECHO = os.getenv("MAGIC_LINK_DEV_ECHO", "false").lower() in ("1", "true", "yes")
+
+# 配信結果のWebhook（Resendのダッシュボードで発行する `whsec_...`）。
+# ⚠️ 未設定だと署名検証が**必ず失敗**し、Webhookは全て403で拒否される。
+#    「未設定なら検証をスキップ」にしていないのは、誰でも任意のアドレスを
+#    ブロックできる＝任意のユーザーのログインを妨害できてしまうため
+RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "")
 
 # Reloadly: ポイント→携帯キャリア（Claro/Movistar/Entel/Bitel）チャージ交換
 RELOADLY_CLIENT_ID = os.getenv("RELOADLY_CLIENT_ID", "")

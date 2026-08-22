@@ -13,6 +13,7 @@ from database import get_session
 from dependencies import require_admin
 from errors import ApiError
 from models import (
+    EmailEvent,
     AdminLog,
     CampaignSetting,
     PointTransaction,
@@ -51,8 +52,20 @@ from schemas.admin import (
     Page,
     WithdrawalActionBody,
 )
+from schemas.admin import (
+    AdminEmailClearBody,
+    AdminEmailClearResult,
+    AdminEmailEventList,
+    AdminEmailEventRead,
+)
 from schemas.offer import OfferList, OfferRead
-from services import admin_service, campaign_service, points_service, referral_service
+from services import (
+    admin_service,
+    campaign_service,
+    email_event_service,
+    points_service,
+    referral_service,
+)
 from services.cpalead_service import CPALeadError, CPALeadService
 
 # 依存をルーター単位で付ける。個別のエンドポイントで書き忘れても認可が外れないようにする
@@ -665,3 +678,58 @@ def list_admin_logs(
         ],
         page=meta,
     )
+
+
+# ------------------------------------------------------------ メールの不達
+
+@router.get("/email-events", response_model=AdminEmailEventList)
+def list_email_events(
+    blocking_only: bool = True,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=PER_PAGE_MAX),
+    session: Session = Depends(get_session),
+):
+    """メールが届かなかった記録。
+
+    既定では**まだ解除していない不達だけ**を出す。ここに載っている人は
+    マジックリンクでログインできない状態にある。
+    """
+    stmt = select(EmailEvent)
+    if blocking_only:
+        stmt = stmt.where(EmailEvent.event_type.in_(email_event_service.BLOCKING_EVENTS))
+        stmt = stmt.where(EmailEvent.cleared_at.is_(None))
+    stmt = stmt.order_by(EmailEvent.received_at.desc())
+    rows, meta = _paginate(session, stmt, page, per_page)
+    return AdminEmailEventList(
+        events=[AdminEmailEventRead.model_validate(r, from_attributes=True) for r in rows],
+        page=meta,
+    )
+
+
+@router.post("/email-events/clear", response_model=AdminEmailClearResult)
+def clear_email_block(
+    body: AdminEmailClearBody,
+    admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """不達の記録を解除して、再びメールを送れるようにする。
+
+    ⚠️ これは**こちら側の記録を消すだけ**。Resend側の抑制リストは残っているので、
+       ダッシュボードでも消さないと実際には送信されない。
+       原因（アドレスの誤り、受信箱の設定）が直っていることを先に確かめること。
+    """
+    cleared = email_event_service.clear(session, body.email)
+    if cleared == 0:
+        raise ApiError(404, "NOT_BLOCKED", "Esta dirección no está bloqueada")
+
+    admin_service.log_action(
+        session,
+        admin=admin,
+        action="email.clear_block",
+        target_type="email",
+        target_id=body.email.strip().lower(),
+        detail={"cleared": cleared},
+    )
+    session.commit()
+    logger.info("メールのブロックを解除: email=%s by admin=%s", body.email, admin.id)
+    return AdminEmailClearResult(cleared=cleared)
