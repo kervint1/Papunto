@@ -86,7 +86,7 @@ export default function PrivacidadPage() {
           {/* Titular */}
           <Section title="Titular y Responsable del tratamiento de los Datos">
             <p>Papunto — 1 Gosho, Ichihara-shi, Chiba, Japón</p>
-            <p>Correo electrónico de contacto del Titular: info@papunto.pe</p>
+            <p>Correo electrónico de contacto del Titular: soporte@papunto.pe</p>
           </Section>
 
           {/* Tipos de Datos */}
@@ -337,8 +337,8 @@ export default function PrivacidadPage() {
 
         <p className="mt-6 text-xs text-neutral-400">
           Ante cualquier duda sobre esta política, puede contactarnos en{" "}
-          <a href="mailto:info@papunto.pe" className="underline">
-            info@papunto.pe
+          <a href="mailto:soporte@papunto.pe" className="underline">
+            soporte@papunto.pe
           </a>
           .
         </p>

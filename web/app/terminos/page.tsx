@@ -418,8 +418,8 @@ export default function TerminosPage() {
 
         <p className="mt-6 text-xs text-neutral-400">
           Ante cualquier duda sobre estos Términos, puede contactarnos en{" "}
-          <a href="mailto:info@papunto.pe" className="underline">
-            info@papunto.pe
+          <a href="mailto:soporte@papunto.pe" className="underline">
+            soporte@papunto.pe
           </a>
           . Consulte también nuestra{" "}
           <Link href="/privacidad" className="underline">

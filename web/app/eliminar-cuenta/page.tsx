@@ -65,8 +65,8 @@ export default function EliminarCuentaPage() {
 
       <p className="mt-8 text-xs text-neutral-500">
         ¿Tienes dudas? Escríbenos a{" "}
-        <a href="mailto:info@papunto.pe" className="underline">
-          info@papunto.pe
+        <a href="mailto:soporte@papunto.pe" className="underline">
+          soporte@papunto.pe
         </a>
         . Consulta también nuestra{" "}
         <Link href="/privacidad" className="underline">
