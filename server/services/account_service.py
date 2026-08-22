@@ -105,6 +105,16 @@ def delete_account(session: Session, user: User, *, reason: Optional[str] = None
     user.avatar_url = None
     # 管理者のまま退会されると、復活させたときに権限が残る
     user.is_admin = False
+
+    # 先着枠を返す。返さないと100枠が退会のたびに目減りする。
+    # /campana でも「除外されたら枠は次の人に回る」と告知している
+    user.campaign_reserved_at = None
+
+    # ⚠️ campaign_reward_granted_at は**消さない**。
+    #    campaign_already_claimed() がこれを見て「この番号は受給済み」を
+    #    判定しているので、消すと退会 → 再登録で300ptを二度取りできる。
+    #    受け取った事実は履歴として残す。
+
     user.deleted_at = now
     session.add(user)
 

@@ -385,3 +385,26 @@ def test_退会済みのアドレスにはメールを送らない(monkeypatch):
 
     # 例外が出なければ、接続せずに戻っている
     mail_service.send(to="deleted+3@deleted.invalid", subject="x", body="y")
+
+
+def test_退会すると先着枠が返る(client, session: Session, user: User):
+    """返さないと100枠が退会のたびに目減りする。
+    /campana でも「除外されたら枠は次の人に回る」と告知している"""
+    complete_registration(session, user)
+    ocupados = campaign_service.remaining_slots(session)
+
+    client.delete("/api/v1/me", headers=auth(user))
+
+    assert campaign_service.remaining_slots(session) == ocupados + 1
+
+
+def test_枠を返しても300ptの二度取りはできない(client, session: Session, user: User):
+    """campaign_reward_granted_at を消すと phone_hash の判定が壊れる。
+    枠は返すが、受給した事実は残す"""
+    complete_registration(session, user, phone="987654321")
+    client.delete("/api/v1/me", headers=auth(user))
+    session.refresh(user)
+
+    assert user.campaign_reserved_at is None      # 枠は返した
+    assert user.campaign_reward_granted_at is not None  # 受給の事実は残す
+    assert account_service.campaign_already_claimed(session, "987654321") is True
