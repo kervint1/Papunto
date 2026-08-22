@@ -107,8 +107,15 @@ export default function LandingPage() {
       alt: "Lista de tareas y puntos de Papunto",
     },
     {
+      // ⚠️ 挿絵に Plin と SIMリチャージ が写っているが、いま選べるのは Yape だけ。
+      //    画像も表示に含まれるので、使えないものを使えるように見せない。
+      //
+      //    recarga  Reloadly で実装済みだが available:false。本番の残高を
+      //             入れるまで開けない（サンドボックスのまま公開すると
+      //             「ポイントは引かれたのに届かない」になる）
+      //    Plin     未実装。lib/exchangeDestinations.ts にも無い
       title: "Cambias tus puntos por dinero",
-      desc: "Te lo enviamos por Yape, a tu número de celular.",
+      desc: "Hoy te lo enviamos por Yape, a tu número de celular. Recargas de celular y Plin: próximamente.",
       img: "/lp/paso-cobro.jpg",
       alt: "Puntos de Papunto convertidos en dinero por Yape",
     },
