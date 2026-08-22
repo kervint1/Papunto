@@ -91,16 +91,22 @@ export default function LandingPage() {
       when: "Hoy",
       title: "Crea tu cuenta",
       desc: `Reservamos tu cupo entre los primeros 100. Lo guardamos ${t.reservationDays} días.`,
+      img: "/lp/paso-cuenta.jpg",
+      alt: "Pantalla de registro de Papunto en un celular",
     },
     {
       when: "Hoy",
       title: "Registra tu número de Yape",
       desc: `Te acreditamos ${t.initial} puntos (S/ ${soles(t.initial)}) al instante. Es el número donde vas a cobrar.`,
+      img: "/lp/paso-cobro.jpg",
+      alt: "Puntos de Papunto convertidos en dinero por Yape",
     },
     {
       when: fecha,
       title: "Abrimos las tareas",
       desc: `Completa 1 tarea y recibes ${t.bonus} puntos más. Desde ${total} puntos (S/ ${soles(total)}) pides tu dinero por Yape.`,
+      img: "/lp/paso-tareas.jpg",
+      alt: "Lista de tareas y puntos de Papunto",
     },
   ];
 
@@ -228,7 +234,7 @@ export default function LandingPage() {
           {STEPS.map((s, i) => (
             <li
               key={s.title}
-              className="grid gap-2 border-t border-black/10 py-7 sm:grid-cols-[64px_128px_1fr] sm:gap-6"
+              className="grid gap-4 border-t border-black/10 py-7 sm:grid-cols-[56px_112px_minmax(0,1fr)_minmax(0,260px)] sm:items-center sm:gap-6"
             >
               <span className="font-mono text-sm text-neutral-400">0{i + 1}</span>
               <span className="font-mono text-sm text-neutral-500">{s.when}</span>
@@ -236,6 +242,15 @@ export default function LandingPage() {
                 <div className="text-lg text-neutral-900">{s.title}</div>
                 <p className="mt-1 text-neutral-600">{s.desc}</p>
               </div>
+              {/* 挿絵。装飾なので、読めなくても手順は成立する。
+                  next/image を使わないのは、public配下の静的画像で最適化済みのため */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={s.img}
+                alt={s.alt}
+                loading="lazy"
+                className="w-full rounded-xl bg-neutral-50"
+              />
             </li>
           ))}
         </ol>
