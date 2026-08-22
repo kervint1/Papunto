@@ -335,30 +335,27 @@ export default function LandingPage() {
       >
         {/* 「Qué es Papunto」が 01右 / 02左 / 03右 で終わるので、
             ここは左に置いて左右の振れを続ける */}
-        {/* 画像を大きく見せたい節なので、上の3つ（半分ずつ）より
-            広く取る。5列のうち3列を画像に振る */}
-        <div className="mt-8 grid gap-6 sm:grid-cols-5 sm:items-center sm:gap-10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/lp/invitacion.jpg"
-            alt="Dos personas comparten un código de invitación de Papunto"
-            loading="lazy"
-            className="w-full rounded-2xl bg-neutral-50 sm:col-span-3"
-          />
-          <div className="sm:col-span-2">
-            <p className="text-lg leading-relaxed text-neutral-700">
-              Comparte tu código durante el pre-registro. Recibes{" "}
-              <strong className="text-neutral-900">
-                {t.referral} puntos (S/ {soles(t.referral)})
-              </strong>{" "}
-              cuando tu amigo haya ganado {t.referralEarnings} puntos
-              completando tareas. Crear la cuenta no es suficiente.
-            </p>
-            <p className="mt-4 text-sm text-neutral-500">
-              Hasta {t.referralMax} amigos premiados por cuenta.
-            </p>
-          </div>
+        {/* 画像を一番大きく見せたい節なので、横に並べず改行して全幅で置く */}
+        <div className="max-w-[52ch]">
+          <p className="mt-7 text-lg leading-relaxed text-neutral-700">
+            Comparte tu código durante el pre-registro. Recibes{" "}
+            <strong className="text-neutral-900">
+              {t.referral} puntos (S/ {soles(t.referral)})
+            </strong>{" "}
+            cuando tu amigo haya ganado {t.referralEarnings} puntos completando
+            tareas. Crear la cuenta no es suficiente.
+          </p>
+          <p className="mt-4 text-sm text-neutral-500">
+            Hasta {t.referralMax} amigos premiados por cuenta.
+          </p>
         </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/lp/invitacion.jpg"
+          alt="Dos personas comparten un código de invitación de Papunto"
+          loading="lazy"
+          className="mt-10 w-full rounded-2xl bg-neutral-50"
+        />
       </Section>
 
       {/* 登録の前に招待コードを確かめられるようにする。後から入れる形だと、
