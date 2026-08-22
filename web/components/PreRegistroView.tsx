@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 
 import { InviteCard } from "@/components/InviteCard";
+import { InviteCodeEntry } from "@/components/InviteCodeEntry";
 import { Logo } from "@/components/Logo";
 import { PhoneGate } from "@/components/PhoneGate";
 import { getPhone, type CampaignSlot, type CampaignStatus, type ReferralMe } from "@/lib/api";
@@ -37,12 +38,15 @@ export function PreRegistroView({
   slot,
   referral,
   points,
+  onClaimed,
 }: {
   token: string | undefined;
   status: CampaignStatus;
   slot: CampaignSlot;
   referral: ReferralMe | null;
   points: number;
+  /** コードを適用したら呼ぶ。呼び出し側で referral を取り直す */
+  onClaimed?: () => void;
 }) {
   const [phone, setPhone] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -156,7 +160,18 @@ export function PreRegistroView({
           </div>
         )}
 
-        {/* 3. 招待 */}
+        {/* 3. 招待コードの入力。
+            ⚠️ **ここに置かないと、ログイン後にコードを入れる手段が無くなる。**
+               リンク経由（?ref=）はWhatsAppやFacebookのアプリ内ブラウザで
+               壊れる（Googleが外部ブラウザに飛ばすのでlocalStorageが失われる）。
+               手入力がその迂回路なので、事前登録中こそ必要 */}
+        {referral?.can_claim && onClaimed && (
+          <div className="mt-4">
+            <InviteCodeEntry token={token} data={referral} onClaimed={onClaimed} />
+          </div>
+        )}
+
+        {/* 4. 招待 */}
         <div className="mt-4">
           <InviteCard data={referral} />
         </div>

@@ -137,6 +137,7 @@ export default function HomePage() {
         slot={slot}
         referral={referral}
         points={points}
+        onClaimed={loadReferral}
       />
     );
   }
