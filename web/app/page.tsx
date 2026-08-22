@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowRight, Banknote, ListChecks, Target } from "lucide-react";
@@ -10,33 +10,88 @@ import { CampaignBadge } from "@/components/CampaignBadge";
 import { Logo } from "@/components/Logo";
 import { InviteIntro } from "@/components/InviteIntro";
 import { captureRefFromUrl } from "@/lib/referral";
+import { getCampaignStatus } from "@/lib/api";
+
+/**
+ * LPに出す数字の既定値。
+ *
+ * ⚠️ 固定文字にしないこと。管理画面で報酬や枠の期限を変えたときに、LPだけ
+ *    古い数字が残る。ペルーはINDECOPIの消費者保護が効いており、告知と実装の
+ *    不一致はそのまま不当表示になる（/campana と同じ理由）。
+ *    APIが落ちているときだけこの値で描く。models/campaign_setting.py と揃える。
+ */
+const FALLBACK = {
+  initial: 300,
+  bonus: 200,
+  opensAt: "2026-10-01",
+  reservationDays: 7,
+  referral: 200,
+};
+
+function soles(points: number) {
+  return (points / 100).toFixed(2);
+}
+
+function longDate(iso: string) {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-PE", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+}
 
 /**
  * ⚠️ 将来の話ではなく、**登録した人に実際に起きること**を順番に書く。
  *    以前は「タスクを選ぶ→条件を満たす→Yapeで受け取る」だったが、
  *    タスクは10/1まで存在しないので、来た人には何も伝わらなかった。
+ *
+ * ⚠️ **「登録したら300pt」と書かない。** 付与は電話番号の登録時。
+ *    「登録するだけでお金」はペルーで詐欺の典型句で、それを避けるために
+ *    付与のタイミングを分けてある。文言が元に戻ると設計の意味が消える。
  */
-const STEPS = [
-  {
-    icon: ListChecks,
-    title: "Crea tu cuenta",
-    desc: "Reservamos tu cupo entre los primeros 100",
-  },
-  {
-    icon: Target,
-    title: "Registra tu número de Yape",
-    desc: "Te acreditamos 300 pts al instante",
-  },
-  {
-    icon: Banknote,
-    title: "El 1 de octubre",
-    desc: "Abrimos las tareas. Con 1 tarea llegas a 500 pts y cobras",
-  },
-];
+function steps(t: typeof FALLBACK) {
+  return [
+    {
+      icon: ListChecks,
+      title: "Crea tu cuenta",
+      desc: `Reservamos tu cupo por ${t.reservationDays} días`,
+    },
+    {
+      icon: Target,
+      title: "Registra tu número de Yape",
+      desc: `Te acreditamos ${t.initial} pts (S/ ${soles(t.initial)}) al instante`,
+    },
+    {
+      icon: Banknote,
+      title: `El ${longDate(t.opensAt)}`,
+      desc: `Abrimos las tareas. Con 1 tarea llegas a ${t.initial + t.bonus} pts y cobras`,
+    },
+  ];
+}
 
 export default function LandingPage() {
   const router = useRouter();
   const { status } = useSession();
+  const [terms, setTerms] = useState(FALLBACK);
+
+  // 報酬額・開放日・枠の期限を実値で出す。取得に失敗したら既定値のまま描く
+  // （LP自体が落ちる方が実害が大きい）
+  useEffect(() => {
+    getCampaignStatus()
+      .then((s) =>
+        setTerms({
+          initial: s.reward_points_initial,
+          bonus: s.reward_points_bonus,
+          opensAt: s.withdrawals_open_at ?? FALLBACK.opensAt,
+          reservationDays: s.reservation_days ?? FALLBACK.reservationDays,
+          referral: s.referral_reward_points ?? FALLBACK.referral,
+        })
+      )
+      .catch(() => {});
+  }, []);
+
+  const total = terms.initial + terms.bonus;
 
   // 招待リンク（?ref=）で来た場合にコードを保存する。ログインの往復を挟むので、
   // 適用はログイン後に ReferralClaimer が行う
@@ -81,9 +136,21 @@ export default function LandingPage() {
               <br />
               en <span className="text-white">Perú</span>
             </h1>
+            {/* ⚠️ 「登録するだけでS/5」に読めないよう、2段に分かれていることを
+                ここで言い切る。金額だけ先に出すと詐欺の常套句と同じ形になる */}
             <p className="mt-3 max-w-xl text-neutral-800">
-              Reservamos <strong>S/ 5.00</strong> para los primeros 100 que
-              creen su cuenta. Los cobras por Yape cuando abramos.
+              Te reservamos <strong>S/ {soles(total)}</strong> en puntos:{" "}
+              <strong>
+                {terms.initial} al registrar tu número de Yape
+              </strong>{" "}
+              y {terms.bonus} más al completar tu primera tarea. Los cobras por
+              Yape desde el {longDate(terms.opensAt)}.
+            </p>
+            {/* 枠に期限があることは登録の**前**に伝える。規約にしか書いて
+                いないと「知らないうちに枠が消えた」になる */}
+            <p className="mt-2 max-w-xl text-sm text-neutral-800">
+              Tu cupo se guarda <strong>{terms.reservationDays} días</strong>.
+              Si no registras tu número en ese plazo, pasa a otra persona.
             </p>
             {/* ⚠️ ペルーで「登録するだけでお金」は詐欺の典型。仕組みを
                 説明しないと、まともな人ほど登録しない */}
@@ -129,7 +196,7 @@ export default function LandingPage() {
       <div className="mx-auto w-full max-w-5xl px-6 py-12 sm:px-8">
         <h2 className="text-center">Cómo funciona</h2>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {STEPS.map((s, i) => (
+          {steps(terms).map((s, i) => (
             <div
               key={s.title}
               className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:flex-col sm:items-start sm:p-6"
@@ -149,7 +216,7 @@ export default function LandingPage() {
         <div className="mt-10 rounded-2xl bg-neutral-900 p-8 text-center text-white">
           <p className="text-sm text-neutral-300">Invita y gana más</p>
           <p style={{ fontSize: "1.5rem" }} className="mt-1">
-            200 pts por cada amigo
+            {terms.referral} pts por cada amigo
           </p>
           <p className="mx-auto mt-3 max-w-md text-sm text-neutral-300">
             Comparte tu código durante el pre-registro. Recibes los puntos
