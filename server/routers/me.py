@@ -7,7 +7,7 @@ import config
 from database import get_session
 from dependencies import get_current_user
 from models import User
-from schemas.user import DeleteAccountBody, MeResponse
+from schemas.user import DeleteAccountBody, MeResponse, UpdateMeBody
 from services import account_service
 
 logger = logging.getLogger(__name__)
@@ -45,3 +45,37 @@ def delete_me(
     account_service.delete_account(session, user, reason=body.reason if body else None)
     session.commit()
     return None
+
+
+@router.patch("/me", response_model=MeResponse)
+def update_me(
+    body: UpdateMeBody,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """表示名を更新する。
+
+    名前は**表示とメールの宛名にしか使わない**。本人確認には使わない
+    （自己申告なので確実ではない）。ただしYapeで送金するとき、アプリに
+    出る受取人名と食い違えば、規約の「Datos falsos」を判断する材料になる。
+    """
+    if body.name is not None:
+        # 改行が入るとメール本文が崩れる。空文字は「未設定」に戻す扱い
+        name = " ".join(body.name.split()).strip()
+        user.name = name or None
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        logger.info("表示名を更新: user=%s", user.id)
+
+    return MeResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        avatar_url=user.avatar_url,
+        points=user.points,
+        is_admin=user.is_admin,
+        phone_registered=bool(user.phone),
+        min_withdrawal_points=config.MIN_WITHDRAWAL_POINTS,
+        points_per_sol=config.POINTS_PER_SOL,
+    )

@@ -27,10 +27,15 @@ def _body(session: Session, user: User) -> str:
     total = initial + bonus
     site = config.FRONTEND_ORIGIN
 
+    # 宛名。無ければ省く。「Hola ,」になるより挨拶ごと無い方がまし。
+    # マジックリンクで登録した人は提供元から名前が来ないので空のことが多い
+    saludo = f"Hola {user.name},\n\n" if user.name else ""
+
     if user.campaign_reserved_at is None:
         # 枠が埋まった後に登録した人。約束できないことを書かない
         return (
-            "Gracias por crear tu cuenta en Papunto.\n\n"
+            saludo
+            + "Gracias por crear tu cuenta en Papunto.\n\n"
             "Los cupos del pre-registro ya se agotaron, así que esta vez no "
             "pudimos reservarte el bono. Te avisaremos por correo cuando "
             "abramos las tareas y cuando haya nuevos cupos.\n\n"
@@ -39,7 +44,8 @@ def _body(session: Session, user: User) -> str:
 
     fecha = opens.strftime("%d/%m/%Y") if opens else "el lanzamiento"
     return (
-        f"Listo, estás dentro de los {settings.slot_limit} del pre-registro.\n\n"
+        saludo
+        + f"Listo, estás dentro de los {settings.slot_limit} del pre-registro.\n\n"
         f"Reservamos S/ {total / 100:.2f} para ti.\n\n"
         "Cómo recibirlos:\n\n"
         f"1. Registra el número de Yape donde quieres cobrar. "

@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { ArrowLeftRight, Check, Copy, LogOut } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
+import { DisplayNameField } from "@/components/DisplayNameField";
 import { Header } from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 }
 
 export default function CuentaPage() {
-  const { me, token } = useMe();
+  const { me, token, refresh } = useMe();
   const [postbacks, setPostbacks] = useState<Postback[]>([]);
   const [ledger, setLedger] = useState<PointTransaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
@@ -190,7 +191,13 @@ export default function CuentaPage() {
           <div className="flex items-center gap-3">
             <Avatar src={me?.avatar_url} name={me?.name} email={me?.email} size="lg" />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-neutral-900">{me?.name ?? "—"}</div>
+              {/* 表示名。マジックリンクで登録した人は提供元から名前が来ないので
+                  空になる。ここで後から入れられるようにしておく */}
+              {me && token ? (
+                <DisplayNameField me={me} token={token} onSaved={() => refresh()} />
+              ) : (
+                <div className="truncate text-neutral-400">—</div>
+              )}
               <div className="truncate text-sm text-neutral-500">{me?.email ?? ""}</div>
             </div>
           </div>

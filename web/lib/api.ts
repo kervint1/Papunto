@@ -142,6 +142,14 @@ export function deleteAccount(token: string, reason?: string): Promise<void> {
   });
 }
 
+/** 表示名の更新。空文字を送ると未設定に戻る */
+export function updateMe(token: string, name: string): Promise<Me> {
+  return apiFetch<Me>("/api/v1/me", token, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
 export function getMe(token: string): Promise<Me> {
   return apiFetch<Me>("/api/v1/me", token);
 }
