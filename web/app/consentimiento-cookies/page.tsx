@@ -137,8 +137,8 @@ export default function ConsentimientoCookiesPage() {
 
       <p className="mt-10 text-xs text-neutral-400">
         Ante cualquier duda sobre este consentimiento, puede contactarnos en{" "}
-        <a href="mailto:kervint1@gmail.com" className="underline">
-          kervint1@gmail.com
+        <a href="mailto:info@papunto.pe" className="underline">
+          info@papunto.pe
         </a>
         .
       </p>
