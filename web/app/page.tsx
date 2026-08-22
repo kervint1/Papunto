@@ -264,40 +264,40 @@ export default function LandingPage() {
         <p className="mt-6 text-neutral-500">
           Ganas puntos completando tareas y los cambias por dinero.
         </p>
-        {/* 広い画面では画像を右・左・右と振る。3枚横並びだと1枚あたりが
-            小さくなり、絵の中身（登録画面・タスク・交換先）が読めない */}
-        <div className="mt-14 flex flex-col gap-16 sm:gap-24">
+        {/* 画像は横長（16:9）なので、文章の横に置くと小さくなる。
+            改行して全幅で見せる。文章の位置だけ左・右・左と振って
+            リズムを残す */}
+        <div className="mt-14 flex flex-col gap-20 sm:gap-28">
           {ABOUT.map((a, i) => (
-            <div
-              key={a.title}
-              className="grid gap-6 sm:grid-cols-2 sm:items-center sm:gap-14"
-            >
-              {/* 挿絵。読めなくても説明は成立するので lazy でよい */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={a.img}
-                alt={a.alt}
-                loading="lazy"
-                className={`aspect-[4/3] w-full rounded-2xl bg-neutral-50 object-cover ${
-                  i % 2 === 0 ? "sm:order-2" : ""
-                }`}
-              />
-              <div className={i % 2 === 0 ? "sm:order-1" : ""}>
+            <div key={a.title}>
+              <div
+                className={`max-w-[46ch] ${i % 2 === 1 ? "sm:ml-auto sm:text-right" : ""}`}
+              >
                 <span className="font-mono text-sm text-neutral-400">
                   0{i + 1}
                 </span>
                 <h3
                   className="mt-3 text-neutral-900"
                   style={{
-                    fontSize: "clamp(1.25rem, 2.2vw, 1.75rem)",
-                    letterSpacing: "-0.02em",
-                    lineHeight: 1.2,
+                    fontSize: "clamp(1.5rem, 2.8vw, 2.125rem)",
+                    letterSpacing: "-0.025em",
+                    lineHeight: 1.15,
                   }}
                 >
                   {a.title}
                 </h3>
-                <p className="mt-3 leading-relaxed text-neutral-600">{a.desc}</p>
+                <p className="mt-3 text-lg leading-relaxed text-neutral-600">
+                  {a.desc}
+                </p>
               </div>
+              {/* 挿絵。読めなくても説明は成立するので lazy でよい */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={a.img}
+                alt={a.alt}
+                loading="lazy"
+                className="mt-8 w-full rounded-2xl bg-neutral-50"
+              />
             </div>
           ))}
         </div>
@@ -331,28 +331,26 @@ export default function LandingPage() {
         title={`Invita y gana ${t.referral} puntos por amigo`}
         wide
       >
-        <div className="mt-8 grid gap-8 sm:grid-cols-2 sm:items-center sm:gap-14">
-          <div className="max-w-[52ch]">
-            <p className="text-lg leading-relaxed text-neutral-700">
-              Comparte tu código durante el pre-registro. Recibes{" "}
-              <strong className="text-neutral-900">
-                {t.referral} puntos (S/ {soles(t.referral)})
-              </strong>{" "}
-              cuando tu amigo haya ganado {t.referralEarnings} puntos
-              completando tareas. Crear la cuenta no es suficiente.
-            </p>
-            <p className="mt-4 text-sm text-neutral-500">
-              Hasta {t.referralMax} amigos premiados por cuenta.
-            </p>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/lp/invitacion.jpg"
-            alt="Dos personas comparten un código de invitación de Papunto"
-            loading="lazy"
-            className="aspect-[4/3] w-full rounded-2xl bg-neutral-50 object-cover sm:order-first"
-          />
+        <div className="max-w-[52ch]">
+          <p className="mt-7 text-lg leading-relaxed text-neutral-700">
+            Comparte tu código durante el pre-registro. Recibes{" "}
+            <strong className="text-neutral-900">
+              {t.referral} puntos (S/ {soles(t.referral)})
+            </strong>{" "}
+            cuando tu amigo haya ganado {t.referralEarnings} puntos completando
+            tareas. Crear la cuenta no es suficiente.
+          </p>
+          <p className="mt-4 text-sm text-neutral-500">
+            Hasta {t.referralMax} amigos premiados por cuenta.
+          </p>
         </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/lp/invitacion.jpg"
+          alt="Dos personas comparten un código de invitación de Papunto"
+          loading="lazy"
+          className="mt-8 w-full rounded-2xl bg-neutral-50"
+        />
       </Section>
 
       {/* 登録の前に招待コードを確かめられるようにする。後から入れる形だと、
