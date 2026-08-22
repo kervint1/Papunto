@@ -139,6 +139,16 @@ export function PreRegistroView({
                   acreditamos los puntos al instante.
                 </p>
 
+                {/* ⚠️ ここが一番「なぜ番号が要るのか」で止まる場所。
+                    番号 → Yape という流れを絵で示す。文章より早く伝わる */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/lp/registro-celular.jpg"
+                  alt="Tu número de celular es la cuenta de Yape donde recibes el pago"
+                  loading="lazy"
+                  className="mt-4 w-full rounded-2xl bg-neutral-50"
+                />
+
                 {/* ⚠️ 期限を必ず出す。規約（/campana）に書いてあっても、
                     画面に出さずに枠を消すのは不親切。ここが唯一
                     「いつまでに何をすればいいか」が伝わる場所 */}
