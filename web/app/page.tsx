@@ -335,15 +335,17 @@ export default function LandingPage() {
       >
         {/* 「Qué es Papunto」が 01右 / 02左 / 03右 で終わるので、
             ここは左に置いて左右の振れを続ける */}
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 sm:items-center sm:gap-12">
+        {/* 画像を大きく見せたい節なので、上の3つ（半分ずつ）より
+            広く取る。5列のうち3列を画像に振る */}
+        <div className="mt-8 grid gap-6 sm:grid-cols-5 sm:items-center sm:gap-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/lp/invitacion.jpg"
             alt="Dos personas comparten un código de invitación de Papunto"
             loading="lazy"
-            className="w-full rounded-2xl bg-neutral-50"
+            className="w-full rounded-2xl bg-neutral-50 sm:col-span-3"
           />
-          <div>
+          <div className="sm:col-span-2">
             <p className="text-lg leading-relaxed text-neutral-700">
               Comparte tu código durante el pre-registro. Recibes{" "}
               <strong className="text-neutral-900">
