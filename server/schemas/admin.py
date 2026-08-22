@@ -229,8 +229,15 @@ class AdminCampaignSettings(BaseModel):
     updated_by_email: Optional[str] = None
 
     # 保存の前に影響を見せるための現況。設定と一緒に返す
-    granted_count: int  # 付与済みの人数（＝消費済みの枠）
-    users_total: int
+    #
+    # ⚠️ 残り枠は **必ずサーバーで計算した remaining を使う**。
+    #    管理画面で slot_limit - users_total を出していた時期があり、
+    #    users_total には管理者と除外済みが含まれるため、利用者に見せている
+    #    数と食い違っていた（利用者99／管理97）。数え方は1か所に寄せる。
+    granted_count: int  # 報酬を付与済みの人数
+    reserved_count: int  # 枠を確保した人数（＝消費済みの枠）
+    remaining: int  # 残り枠。/campaign/status と同じ値
+    users_total: int  # 全登録者。枠の判定には使わない
 
 
 class AdminCampaignSettingsUpdate(BaseModel):

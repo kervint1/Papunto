@@ -459,7 +459,7 @@ export function getAdminStats(token: string): Promise<AdminStats> {
 
 export function getAdminUsers(
   token: string,
-  params: { q?: string; page?: number } = {}
+  params: { q?: string; campaign?: string; page?: number } = {}
 ): Promise<{ users: AdminUser[]; page: PageMeta }> {
   return apiFetch(`/api/v1/admin/users${qs(params)}`, token);
 }
@@ -694,6 +694,9 @@ export interface AdminCampaignSettings {
   updated_by_email: string | null;
   /** 付与済みの人数。枠を下げられる下限になる */
   granted_count: number;
+  reserved_count: number;
+  /** 残り枠。/campaign/status と同じ値。ここで再計算しないこと */
+  remaining: number;
   users_total: number;
 }
 

@@ -117,10 +117,18 @@ export default function AdminCampaign() {
         <Card className="p-4">
           <p className="text-xs text-neutral-500">Usuarios totales</p>
           <p className="mt-1 text-xl">{data.users_total}</p>
+          <p className="mt-1 text-xs text-neutral-400">incluye admins</p>
         </Card>
         <Card className="p-4">
+          {/* ⚠️ サーバーが返す remaining をそのまま出す。ここで
+              slot_limit - users_total を計算していた頃は、users_total に
+              管理者と除外済みが含まれるため利用者に見せている数と
+              食い違っていた（利用者99／管理97） */}
           <p className="text-xs text-neutral-500">Cupos libres</p>
-          <p className="mt-1 text-xl">{Math.max(0, data.slot_limit - data.users_total)}</p>
+          <p className="mt-1 text-xl">{data.remaining}</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            {data.reserved_count} reservados de {data.slot_limit}
+          </p>
         </Card>
       </div>
 

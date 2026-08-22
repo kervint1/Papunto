@@ -71,7 +71,12 @@ def position_of(session: Session, user: User) -> int:
     earlier = session.exec(
         select(func.count())
         .select_from(User)
-        .where(User.id < user.id, User.campaign_excluded == False)  # noqa: E712
+        .where(
+            User.id < user.id,
+            User.campaign_excluded == False,  # noqa: E712
+            # 退会した人は枠を返しているので、番号も詰める
+            User.deleted_at.is_(None),
+        )
     ).one()
     return int(earlier) + 1
 
@@ -110,6 +115,7 @@ def reserved_count(session: Session) -> int:
             .where(
                 User.campaign_reserved_at.is_not(None),
                 User.campaign_excluded == False,  # noqa: E712
+                User.deleted_at.is_(None),
             )
         ).one()
     )
@@ -124,6 +130,8 @@ def granted_count(session: Session) -> int:
             .where(
                 User.campaign_reward_granted_at.is_not(None),
                 User.campaign_excluded == False,  # noqa: E712
+                # 退会した人は払う相手がいない。受給の事実は phone_hash 側に残る
+                User.deleted_at.is_(None),
             )
         ).one()
     )

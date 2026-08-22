@@ -169,6 +169,8 @@ def _campaign_settings_read(session: Session, setting: CampaignSetting) -> Admin
         updated_at=setting.updated_at,
         updated_by_email=email,
         granted_count=campaign_service.granted_count(session),
+        reserved_count=campaign_service.reserved_count(session),
+        remaining=campaign_service.remaining_slots(session),
         users_total=int(session.exec(select(func.count()).select_from(User)).one()),
     )
 
@@ -268,17 +270,47 @@ def update_campaign_settings(
 @router.get("/users", response_model=AdminUserList)
 def list_users(
     q: Optional[str] = None,
+    campaign: Optional[str] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=PER_PAGE_MAX),
     session: Session = Depends(get_session),
 ):
+    """ユーザー一覧。
+
+    `campaign` で先着キャンペーンの対象者を絞り込める。10/1に誰へ払うのかを
+    確定させる作業で使うので、数え方は campaign_service と揃える
+    （退会・除外を数えない）。
+
+        reserved  枠を確保した人（＝消費済みの枠）
+        granted   300ptを受け取った人
+        pending   枠はあるが、まだ電話番号を入れていない人
+        excluded  対象外にした人
+    """
     stmt = select(User)
     if q:
         like = f"%{q}%"
         stmt = stmt.where(
             User.email.ilike(like) | User.name.ilike(like) | User.phone.ilike(like)
         )
-    stmt = stmt.order_by(User.created_at.desc())
+    if campaign == "excluded":
+        stmt = stmt.where(User.campaign_excluded == True)  # noqa: E712
+    elif campaign in ("reserved", "granted", "pending"):
+        stmt = stmt.where(
+            User.campaign_reserved_at.is_not(None),
+            User.campaign_excluded == False,  # noqa: E712
+            User.deleted_at.is_(None),
+        )
+        if campaign == "granted":
+            stmt = stmt.where(User.campaign_reward_granted_at.is_not(None))
+        elif campaign == "pending":
+            # 枠は持っているが未受給。10/1前に「番号を入れて」と促す相手
+            stmt = stmt.where(User.campaign_reward_granted_at.is_(None))
+
+    if campaign:
+        # 先着順で見る。新しい順だと「何番目までが枠内か」が読み取れない
+        stmt = stmt.order_by(User.id.asc())
+    else:
+        stmt = stmt.order_by(User.created_at.desc())
     rows, meta = _paginate(session, stmt, page, per_page)
     return AdminUserList(
         users=[AdminUserRead.model_validate(r, from_attributes=True) for r in rows], page=meta
