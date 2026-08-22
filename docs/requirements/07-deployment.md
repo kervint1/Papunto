@@ -56,6 +56,11 @@ Herokuは buildpack を2段で使い、`server/` だけを切り出している�
 | `APPWRITE_ENDPOINT` | `https://nyc.cloud.appwrite.io/v1` | リージョン不一致で全操作が失敗する |
 | `APPWRITE_PROJECT_ID` / `APPWRITE_API_KEY` / `APPWRITE_BUCKET_ID` | Appwriteの値 | **画像がdyno再起動で消える**（下記） |
 | `MONLIX_POSTBACK_SECRET` | Monlix契約後 | 署名検証をスキップし誰でも付与できる |
+| `SMTP_HOST` / `SMTP_USER` | `smtp.resend.com` / `resend` | **マジックリンクと登録完了メールが送れない** |
+| `SMTP_PASSWORD` | ResendのAPIキー（`re_...`） | 同上 |
+| `MAIL_FROM` | `Papunto <noreply@papunto.pe>` | 差出人がSMTP_USERになる。Resendで認証したドメインと一致させること |
+| `RESEND_WEBHOOK_SECRET` | Resendの `whsec_...` | 配信結果のWebhookが全て403。**不達に気づけなくなる** |
+| `MAGIC_LINK_DEV_ECHO` | **設定しない** | 既定false。trueにするとログを見た人が誰でもログインできる |
 
 > **キャンペーンの設定（枠数・報酬・交換の開放日）は環境変数ではない。**
 > DBの `campaign_settings` に持ち、管理画面 **/admin/campaign** から変える。
@@ -127,7 +132,9 @@ heroku pg:psql -a papunto-api \
 ## 反映確認
 
 ```bash
-curl -s https://papunto-api-xxx.herokuapp.com/health
+curl -s https://papunto-api-52f69be08ffb.herokuapp.com/health
+# 署名なしなので403が正常。404ならデプロイされていない
+curl -s -o /dev/null -w "%{http_code}\n" -X POST https://papunto-api-52f69be08ffb.herokuapp.com/webhooks/resend -d "{}"
 curl -s https://www.papunto.pe/robots.txt
 curl -s https://www.papunto.pe/ | grep -o 'rel="canonical"[^>]*'
 curl -s -o /dev/null -w "%{http_code}\n" https://www.papunto.pe/blog
