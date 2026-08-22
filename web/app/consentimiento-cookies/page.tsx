@@ -13,7 +13,7 @@ export default function ConsentimientoCookiesPage() {
   return (
     <LegalLayout
       title="Consentimiento para el uso de cookies"
-      updated="26 de julio de 2026"
+      updated="22 de agosto de 2026"
       current="/consentimiento-cookies"
     >
       <div className="flex flex-col gap-5">

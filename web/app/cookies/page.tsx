@@ -49,7 +49,7 @@ export default function CookiesPage() {
   return (
     <LegalLayout
       title="Política de Cookies"
-      updated="26 de julio de 2026"
+      updated="22 de agosto de 2026"
       current="/cookies"
     >
         <p className="mt-3 text-sm leading-relaxed text-neutral-700">
@@ -100,7 +100,17 @@ export default function CookiesPage() {
 
           {/* Titular */}
           <Section title="Titular y Responsable del tratamiento de los Datos">
-            <p>Papunto — 1 Gosho, Ichihara-shi, Chiba, Japón</p>
+            {/* ⚠️ 運営主体。**ペルーの個人データ保護法は管理責任主体の明示を求める**
+                （Ley 29733 / DS 016-2024-JUS は国外事業者にも域外適用される）。
+                法人登記の商号・本店所在地と一致させること */}
+            <p>
+              Papunto es un servicio operado por Habibi Auto Trading合同会社
+              (Habibi Auto Trading LLC).
+            </p>
+            <p>
+              Shibuya Dogenzaka Tokyu Building 2F-C, 1-10-8 Dogenzaka,
+              Shibuya-ku, Tokio 150-0043, Japón
+            </p>
             <p>Correo electrónico de contacto del Titular: soporte@papunto.pe</p>
           </Section>
 
