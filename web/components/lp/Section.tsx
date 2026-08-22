@@ -11,12 +11,15 @@ export function Section({
   id,
   children,
   compact = false,
+  wide = false,
 }: {
   kicker: string;
   title: string;
   id?: string;
   children: React.ReactNode;
   compact?: boolean;
+  /** 本文の折り返しを外す。図版を並べる節だけに使う（読み物は60chのまま） */
+  wide?: boolean;
 }) {
   return (
     <section
@@ -27,7 +30,7 @@ export function Section({
         <div className="pt-1 font-mono text-xs uppercase tracking-[0.18em] text-neutral-400">
           {kicker}
         </div>
-        <div className="max-w-[60ch]">
+        <div className={wide ? "" : "max-w-[60ch]"}>
           <h2
             className="text-neutral-900"
             style={{

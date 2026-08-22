@@ -81,12 +81,6 @@ export default function LandingPage() {
   const fecha = longDate(t.opensAt);
 
   /**
-   * ⚠️ **「登録したら300pt」と書かない。** 付与は電話番号の登録時。
-   *    「登録するだけでお金」はペルーで詐欺の典型句で、それを避けるために
-   *    付与のタイミングを分けてある。番号は不正対策の土台でもある
-   *    （1番号1アカウント）。文言が戻ると設計の意味が消える。
-   */
-  /**
    * サービスとして何をするところか。**キャンペーンの手順とは別**。
    *
    * これが無いと「S/5もらえる」ことしか書いていないLPになり、詐欺を疑って
@@ -121,6 +115,14 @@ export default function LandingPage() {
     },
   ];
 
+  /**
+   * このキャンペーンで実際に起きること。日付つきの約束。
+   *
+   * ⚠️ **「登録したら300pt」と書かない。** 付与は電話番号の登録時。
+   *    「登録するだけでお金」はペルーで詐欺の典型句で、それを避けるために
+   *    付与のタイミングを分けてある。番号は不正対策の土台でもある
+   *    （1番号1アカウント）。文言が戻ると設計の意味が消える。
+   */
   const STEPS = [
     {
       when: "Hoy",
@@ -258,25 +260,44 @@ export default function LandingPage() {
       {/* サービスの説明。キャンペーンの手順（下）とは役割が違う。
           「S/5もらえる」しか書いていないと、詐欺を疑っている人が一番
           知りたい「何をするアプリか」が伝わらない */}
-      <Section kicker="The app" title="Qué es Papunto">
+      <Section kicker="The app" title="Qué es Papunto" wide>
         <p className="mt-6 text-neutral-500">
           Ganas puntos completando tareas y los cambias por dinero.
         </p>
-        <div className="mt-10 grid gap-8 sm:grid-cols-3">
-          {ABOUT.map((a) => (
-            <div key={a.title}>
+        {/* 広い画面では画像を右・左・右と振る。3枚横並びだと1枚あたりが
+            小さくなり、絵の中身（登録画面・タスク・交換先）が読めない */}
+        <div className="mt-14 flex flex-col gap-16 sm:gap-24">
+          {ABOUT.map((a, i) => (
+            <div
+              key={a.title}
+              className="grid gap-6 sm:grid-cols-2 sm:items-center sm:gap-14"
+            >
               {/* 挿絵。読めなくても説明は成立するので lazy でよい */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={a.img}
                 alt={a.alt}
                 loading="lazy"
-                className="aspect-[4/3] w-full rounded-xl bg-neutral-50 object-cover"
+                className={`aspect-[4/3] w-full rounded-2xl bg-neutral-50 object-cover ${
+                  i % 2 === 0 ? "sm:order-2" : ""
+                }`}
               />
-              <div className="mt-4 text-neutral-900">{a.title}</div>
-              <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-                {a.desc}
-              </p>
+              <div className={i % 2 === 0 ? "sm:order-1" : ""}>
+                <span className="font-mono text-sm text-neutral-400">
+                  0{i + 1}
+                </span>
+                <h3
+                  className="mt-3 text-neutral-900"
+                  style={{
+                    fontSize: "clamp(1.25rem, 2.2vw, 1.75rem)",
+                    letterSpacing: "-0.02em",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {a.title}
+                </h3>
+                <p className="mt-3 leading-relaxed text-neutral-600">{a.desc}</p>
+              </div>
             </div>
           ))}
         </div>
