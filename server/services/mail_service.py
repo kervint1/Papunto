@@ -24,6 +24,14 @@ def send(*, to: str, subject: str, body: str) -> None:
     if not configured():
         raise MailError("SMTPが未設定")
 
+    # 退会したアカウントのアドレスには送らない。
+    # 退会時に deleted+<id>@deleted.invalid へ書き換えているので配送されないが、
+    # 送ろうとすること自体が無駄なうえ、バウンスが積もると送信ドメインの
+    # 評価が落ちる（ticketjam の DeletedUserMailInterceptor と同じ考え）
+    if to.endswith("@deleted.invalid"):
+        logger.info("退会済みのアドレスなので送らない: to=%s", to)
+        return
+
     message = EmailMessage()
     message["From"] = config.MAIL_FROM or config.SMTP_USER
     message["To"] = to

@@ -42,6 +42,14 @@ def _issue_token(session: Session, user) -> TokenResponse:
     ⚠️ メールの送信に失敗してもログインは成功させる。入れなくなる方が
        損失が大きい（送信済みを記録しないので、次回のログインで再試行される）
     """
+    # 凍結中はトークンを出さない。出すと毎回401/403になり、
+    # 利用者からは「入れるのに何も動かない」に見える
+    if user.suspended_at is not None:
+        raise ApiError(
+            403,
+            "ACCOUNT_SUSPENDED",
+            "Tu cuenta está suspendida. Escríbenos a soporte@papunto.pe",
+        )
     session.commit()
     session.refresh(user)
     welcome_service.send_if_needed(session, user)

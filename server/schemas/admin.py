@@ -40,6 +40,9 @@ class AdminUserRead(BaseModel):
     phone: Optional[str] = None
     points: int
     is_admin: bool
+    # 凍結（使わせない）と削除（個人情報を落とす）は別物なので両方出す
+    suspended_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     created_at: datetime
 
 
@@ -251,3 +254,8 @@ class AdminCampaignSettingsUpdate(BaseModel):
 
 class AdminSetAdminBody(BaseModel):
     is_admin: bool
+
+
+class AdminSuspensionBody(BaseModel):
+    suspended: bool
+    reason: Optional[str] = None

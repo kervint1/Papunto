@@ -26,6 +26,9 @@ def get_current_user(
     #    ここで弾かないと、退会後もAPIを叩き続けられる
     if user.deleted_at is not None:
         raise ApiError(401, "ACCOUNT_DELETED", "Esta cuenta fue eliminada")
+    # 凍結中は一切のAPIを使わせない。規約9条の「停止」の実体
+    if user.suspended_at is not None:
+        raise ApiError(403, "ACCOUNT_SUSPENDED", "Tu cuenta está suspendida. Escríbenos a soporte@papunto.pe")
     return user
 
 

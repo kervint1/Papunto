@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import {
+  deleteUserAsAdmin,
   getAdminUser,
   setCampaignExclusion,
   setUserAdmin,
+  setUserSuspension,
   type AdminUserDetail,
 } from "@/lib/api";
 
@@ -42,6 +44,7 @@ export default function AdminUserDetailPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [adminConfirming, setAdminConfirming] = useState(false);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
 
   useEffect(() => {
     if (!token || !params?.id) return;
@@ -55,12 +58,6 @@ export default function AdminUserDetailPage() {
 
   const u = data.user;
 
-  /**
-   * 先着枠の対象から外す／戻す。
-   *
-   * 外すときは付与済みの報酬も取り消される（サーバー側）。取り消せないと、
-   * 管理者や検証用のアカウントが埋めた枠が永久に戻らない。
-   */
   /**
    * 管理者権限の付け外し。
    *
@@ -82,6 +79,49 @@ export default function AdminUserDetailPage() {
     }
   };
 
+  /** 凍結／解除。使わせないだけなので取り消せる */
+  const toggleSuspension = async (next: boolean) => {
+    if (!token || !data) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const user = await setUserSuspension(token, data.user.id, next);
+      setData({ ...data, user });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * 削除。**取り消せない**。
+   *
+   * 本人から削除の請求があった場合に使う（ペルーの Ley 29733 は削除権を
+   * 認めており、本人がメールにアクセスできないと自分では消せない）。
+   * 不正への対処は凍結を使う。
+   */
+  const removeUser = async () => {
+    if (!token || !data) return;
+    setDeleteConfirming(false);
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteUserAsAdmin(token, data.user.id);
+      getAdminUser(token, data.user.id).then(setData).catch(console.error);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * 先着枠の対象から外す／戻す。
+   *
+   * 外すときは付与済みの報酬も取り消される（サーバー側）。取り消せないと、
+   * 管理者や検証用のアカウントが埋めた枠が永久に戻らない。
+   */
   const toggleExclusion = async (next: boolean) => {
     if (!token || !data) return;
     setConfirming(false);
@@ -142,6 +182,66 @@ export default function AdminUserDetailPage() {
           {u.is_admin ? "管理者から外す" : "管理者にする"}
         </button>
       </div>
+      {/* 凍結と削除。用途が違うので並べて出す。
+          凍結 = 使わせない（取り消せる）／削除 = 個人情報を落とす（戻せない） */}
+      <div className="mt-8 flex items-center justify-between">
+        <h2 className="text-sm text-neutral-500">Cuenta</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => toggleSuspension(!u.suspended_at)}
+            disabled={busy || !!u.deleted_at}
+            className="rounded-lg border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 disabled:opacity-40"
+          >
+            {u.suspended_at ? "凍結を解除" : "凍結する"}
+          </button>
+          <button
+            onClick={() => setDeleteConfirming(true)}
+            disabled={busy || !!u.deleted_at}
+            className="rounded-lg border border-red-300 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-40"
+          >
+            削除する
+          </button>
+        </div>
+      </div>
+      {u.deleted_at && (
+        <p className="mt-2 text-sm text-neutral-500">
+          {fmtDate(u.deleted_at)} に削除済み
+        </p>
+      )}
+      {u.suspended_at && !u.deleted_at && (
+        <p className="mt-2 text-sm text-red-600">
+          {fmtDate(u.suspended_at)} から凍結中。ログインできません
+        </p>
+      )}
+      {deleteConfirming && (
+        <div className="mt-2 rounded-lg border border-red-300 bg-red-50 p-4 text-sm">
+          <p className="text-red-900">
+            <strong>{u.email}</strong> のメール・氏名・電話番号を消し、
+            <strong>残っているポイントを失効させます</strong>。
+            <strong>取り消せません。</strong>
+          </p>
+          <p className="mt-2 text-red-900">
+            使わせないだけなら「凍結する」を使ってください。
+            削除は、本人から削除の請求があった場合に使います。
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={removeUser}
+              disabled={busy}
+              className="rounded-lg bg-red-600 px-4 py-2 text-xs text-white disabled:opacity-50"
+            >
+              削除する
+            </button>
+            <button
+              onClick={() => setDeleteConfirming(false)}
+              className="rounded-lg border border-neutral-300 px-4 py-2 text-xs"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
       {adminConfirming && (
         <div className="mt-2 rounded-lg border border-red-300 bg-red-50 p-4 text-sm">
           <p className="text-red-900">

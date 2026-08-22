@@ -51,9 +51,15 @@ from schemas.admin import (
     Page,
     WithdrawalActionBody,
 )
-from schemas.admin import AdminSetAdminBody
+from schemas.admin import AdminSetAdminBody, AdminSuspensionBody
 from schemas.offer import OfferList, OfferRead
-from services import admin_service, campaign_service, points_service, referral_service
+from services import (
+    account_service,
+    admin_service,
+    campaign_service,
+    points_service,
+    referral_service,
+)
 from services.cpalead_service import CPALeadError, CPALeadService
 
 # 依存をルーター単位で付ける。個別のエンドポイントで書き忘れても認可が外れないようにする
@@ -710,3 +716,78 @@ def set_admin(
     session.refresh(user)
     logger.info("管理者権限を変更: user=%s is_admin=%s by=%s", user_id, body.is_admin, admin.id)
     return AdminUserRead.model_validate(user, from_attributes=True)
+
+
+@router.post("/users/{user_id}/suspension", response_model=AdminUserRead)
+def set_suspension(
+    user_id: int,
+    body: AdminSuspensionBody,
+    admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """アカウントを凍結／解除する。規約9条の「停止」の実体。
+
+    削除と使い分ける。凍結はアカウントを残したまま使わせないので、
+    不正の疑いがある段階で使う。削除は個人情報を落とすので取り消せない。
+    """
+    if user_id == admin.id:
+        raise ApiError(400, "CANNOT_MODIFY_SELF", "No puedes suspender tu propia cuenta")
+
+    user = session.get(User, user_id)
+    if user is None:
+        raise ApiError(404, "USER_NOT_FOUND", "Usuario no encontrado")
+    if user.deleted_at is not None:
+        raise ApiError(409, "ACCOUNT_DELETED", "Esta cuenta fue eliminada")
+
+    before = user.suspended_at is not None
+    user.suspended_at = datetime.now(timezone.utc) if body.suspended else None
+    session.add(user)
+    admin_service.log_action(
+        session,
+        admin=admin,
+        action="user.set_suspension",
+        target_type="user",
+        target_id=str(user_id),
+        detail={"before": before, "after": body.suspended, "reason": body.reason},
+        note=body.reason,
+    )
+    session.commit()
+    session.refresh(user)
+    logger.info("凍結を変更: user=%s suspended=%s by=%s", user_id, body.suspended, admin.id)
+    return AdminUserRead.model_validate(user, from_attributes=True)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """管理者がアカウントを削除する。本人が使うのと同じ処理を呼ぶ。
+
+    本人がメールにアクセスできなくなった場合の削除請求に応えるために要る
+    （ペルーの Ley 29733 は削除権を認めている）。
+
+    ⚠️ 換金の申請中は削除できない（account_service 側で弾く）。
+       先に却下してポイントを返してから削除する。
+    """
+    if user_id == admin.id:
+        raise ApiError(400, "CANNOT_MODIFY_SELF", "Elimina tu propia cuenta desde /eliminar-cuenta")
+
+    user = session.get(User, user_id)
+    if user is None:
+        raise ApiError(404, "USER_NOT_FOUND", "Usuario no encontrado")
+
+    email = user.email
+    account_service.delete_account(session, user, reason="eliminado por admin")
+    admin_service.log_action(
+        session,
+        admin=admin,
+        action="user.delete",
+        target_type="user",
+        target_id=str(user_id),
+        detail={"email": email},
+    )
+    session.commit()
+    logger.info("管理者がアカウントを削除: user=%s by=%s", user_id, admin.id)
+    return None

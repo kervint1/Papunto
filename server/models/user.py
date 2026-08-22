@@ -68,6 +68,14 @@ class User(SQLModel, table=True):
     # 代わりに個人が特定できる値（メール・氏名・アバター・電話番号）を落とし、
     # UNIQUE制約を空けて再登録できるようにする。
     deleted_at: Optional[datetime] = Field(default=None, index=True)
+    # 凍結した時刻。**削除とは用途が違う**。
+    #
+    #   削除  個人情報を落とす。本人の請求と、Google Play の要件に応える
+    #   凍結  アカウントは残したまま使わせない。規約9条の「停止」がこれ
+    #
+    # 削除だと別のメールアドレスで戻ってこられるので、不正対策としては弱い。
+    # 逆に削除請求には凍結では応じられない（個人情報が残るため）。
+    suspended_at: Optional[datetime] = Field(default=None, index=True)
     # 退会時に電話番号のハッシュだけ残す。番号そのものは消す。
     #
     # ⚠️ これが無いと「退会 → 再登録」で事前登録の300ptを何度でも受け取れる。

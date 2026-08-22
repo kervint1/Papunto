@@ -247,3 +247,141 @@ def test_退会したユーザーは管理者にできない(client, session: Se
     )
 
     assert res.status_code == 409
+
+
+# ------------------------------------------------------------- 凍結
+
+def test_凍結すると全APIが使えなくなる(client, session: Session, user: User):
+    """規約9条の「停止」の実体。campaign_excluded では
+    アカウント自体は使い続けられる"""
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+
+    res = client.post(
+        f"/api/v1/admin/users/{user.id}/suspension",
+        json={"suspended": True, "reason": "fraude"},
+        headers=auth(admin),
+    )
+    assert res.status_code == 200
+
+    me = client.get("/api/v1/me", headers=auth(user))
+    assert me.status_code == 403
+    assert me.json()["error"]["code"] == "ACCOUNT_SUSPENDED"
+
+
+def test_凍結を解除すると使えるようになる(client, session: Session, user: User):
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+    client.post(
+        f"/api/v1/admin/users/{user.id}/suspension",
+        json={"suspended": True},
+        headers=auth(admin),
+    )
+
+    client.post(
+        f"/api/v1/admin/users/{user.id}/suspension",
+        json={"suspended": False},
+        headers=auth(admin),
+    )
+
+    assert client.get("/api/v1/me", headers=auth(user)).status_code == 200
+
+
+def test_凍結中はログインさせない(client, session: Session, user: User, monkeypatch):
+    """トークンを出すと毎回403になり、利用者からは
+    「入れるのに何も動かない」に見える"""
+    import config
+
+    monkeypatch.setattr(config, "MAGIC_LINK_DEV_ECHO", True)
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+    client.post(
+        f"/api/v1/admin/users/{user.id}/suspension",
+        json={"suspended": True},
+        headers=auth(admin),
+    )
+
+    # マジックリンクを発行して踏む＝ログインと同じ経路
+    from services import magic_link_service
+
+    raw = magic_link_service.issue(session, user.email)
+    session.commit()
+    res = client.post("/api/v1/auth/magic-link/verify", json={"token": raw})
+
+    assert res.status_code == 403
+    assert res.json()["error"]["code"] == "ACCOUNT_SUSPENDED"
+
+
+def test_自分は凍結できない(client, session: Session):
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+
+    res = client.post(
+        f"/api/v1/admin/users/{admin.id}/suspension",
+        json={"suspended": True},
+        headers=auth(admin),
+    )
+
+    assert res.status_code == 400
+
+
+# ------------------------------------------------- 管理者による削除
+
+def test_管理者がアカウントを削除できる(client, session: Session, user: User):
+    """本人がメールにアクセスできなくなった場合の削除請求に応えるため"""
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+    complete_registration(session, user)
+
+    res = client.delete(f"/api/v1/admin/users/{user.id}", headers=auth(admin))
+
+    assert res.status_code == 204
+    session.refresh(user)
+    assert user.deleted_at is not None
+    assert user.phone is None
+
+
+def test_管理者の削除も監査ログに残る(client, session: Session, user: User):
+    from models import AdminLog
+
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+    client.delete(f"/api/v1/admin/users/{user.id}", headers=auth(admin))
+
+    log = session.exec(select(AdminLog).where(AdminLog.action == "user.delete")).first()
+    assert log is not None
+    assert log.detail["email"] == "test@example.com"
+
+
+def test_換金の申請中は管理者でも削除できない(client, session: Session, user: User):
+    """先に却下してポイントを返してから削除する"""
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+    complete_registration(session, user)
+    session.add(
+        Withdrawal(user_id=user.id, yape_phone="987654321", points=500, amount_soles=5, status="pending")
+    )
+    session.commit()
+
+    res = client.delete(f"/api/v1/admin/users/{user.id}", headers=auth(admin))
+
+    assert res.status_code == 409
+
+
+def test_自分は管理画面から削除できない(client, session: Session):
+    admin = make_user(session, email="admin@example.com", provider_user_id="g-admin", is_admin=True)
+
+    res = client.delete(f"/api/v1/admin/users/{admin.id}", headers=auth(admin))
+
+    assert res.status_code == 400
+
+
+def test_退会済みのアドレスにはメールを送らない(monkeypatch):
+    """送るとバウンスが積もり、送信ドメインの評価が落ちる"""
+    import config
+    from services import mail_service
+
+    monkeypatch.setattr(config, "SMTP_HOST", "smtp.example.com")
+    monkeypatch.setattr(config, "SMTP_USER", "u")
+    monkeypatch.setattr(config, "SMTP_PASSWORD", "p")
+
+    def boom(*a, **k):
+        raise AssertionError("SMTPに接続してはいけない")
+
+    monkeypatch.setattr("smtplib.SMTP", boom)
+
+    # 例外が出なければ、接続せずに戻っている
+    mail_service.send(to="deleted+3@deleted.invalid", subject="x", body="y")

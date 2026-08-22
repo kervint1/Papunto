@@ -312,6 +312,8 @@ export interface AdminUser {
   avatar_url: string | null;
   points: number;
   is_admin: boolean;
+  suspended_at: string | null;
+  deleted_at: string | null;
   created_at: string;
 }
 
@@ -820,4 +822,27 @@ export function setUserAdmin(
     method: "POST",
     body: JSON.stringify({ is_admin: isAdmin }),
   });
+}
+
+/**
+ * アカウントの凍結／解除。規約9条の「停止」の実体。
+ *
+ * 削除と使い分ける。凍結はアカウントを残したまま使わせないので、
+ * 不正の疑いがある段階で使う。削除は個人情報を落とすので取り消せない。
+ */
+export function setUserSuspension(
+  token: string,
+  userId: number,
+  suspended: boolean,
+  reason?: string
+): Promise<AdminUser> {
+  return apiFetch<AdminUser>(`/api/v1/admin/users/${userId}/suspension`, token, {
+    method: "POST",
+    body: JSON.stringify({ suspended, reason }),
+  });
+}
+
+/** 管理者によるアカウント削除。本人が使うのと同じ処理を呼ぶ */
+export function deleteUserAsAdmin(token: string, userId: number): Promise<void> {
+  return apiFetch(`/api/v1/admin/users/${userId}`, token, { method: "DELETE" });
 }
