@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Instagram } from "lucide-react";
 
 /**
@@ -22,6 +25,13 @@ const LEGAL_LINKS = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
+
+  // 管理画面には出さない。規約やSNSのリンクは利用者向けのもので、
+  // AdminShell の外に別の黄色い帯が付くと画面としても崩れる
+  // （AdminFab も同じ理由で /admin を除いている）
+  if (pathname.startsWith("/admin")) return null;
+
   return (
     <footer className="w-full bg-yellow-400">
       <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
